@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Mia Credenza</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root {
+    --bg:#0d1117; --bg2:#161b22; --bg3:#1c2330;
+    --card:#161b22; --card2:#1c2330;
+    --green:#34d399; --green-dim:rgba(52,211,153,.15); --green-border:rgba(52,211,153,.25); --green-glow:rgba(52,211,153,.35);
+    --amber:#fbbf24; --amber-dim:rgba(251,191,36,.12); --amber-border:rgba(251,191,36,.3);
+    --red:#f87171; --red-dim:rgba(248,113,113,.12); --red-border:rgba(248,113,113,.3);
+    --blue:#60a5fa; --blue-dim:rgba(96,165,250,.12);
+    --text:#e6edf3; --text-mid:rgba(230,237,243,.55); --text-dim:rgba(230,237,243,.3);
+    --border:rgba(255,255,255,.07); --border-mid:rgba(255,255,255,.11);
+    --radius:16px; --shadow:0 4px 24px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Bricolage Grotesque',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+  body::before{content:'';position:fixed;top:-120px;right:-80px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(52,211,153,.07),transparent 70%);pointer-events:none;z-index:0;}
+  body::after{content:'';position:fixed;bottom:-100px;left:-60px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.05),transparent 70%);pointer-events:none;z-index:0;}
+  .app{width:100%;max-width:540px;min-height:100vh;display:flex;flex-direction:column;background:transparent;position:relative;z-index:1;}
+  .hidden{display:none!important;}
+
+  /* SETUP */
+  .setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+  .setup-box{background:var(--card);border:1px solid var(--border-mid);border-radius:24px;padding:32px 24px;box-shadow:var(--shadow),0 0 60px rgba(52,211,153,.05);width:100%;max-width:420px;}
+  .setup-box h1{font-family:'Instrument Serif',serif;color:var(--green);font-size:1.6rem;margin-bottom:6px;letter-spacing:-.01em;}
+  .setup-box p{color:var(--text-mid);font-size:.9rem;margin-bottom:20px;line-height:1.6;}
+  .step{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:.85rem;line-height:1.7;color:var(--text-mid);}
+  .step strong{font-weight:800;color:var(--text);}
+
+  /* AUTH */
+  .auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+  .auth-box{background:var(--card);border:1px solid var(--border-mid);border-radius:24px;padding:32px 24px;box-shadow:var(--shadow),0 0 60px rgba(52,211,153,.05);width:100%;max-width:380px;}
+  .auth-box h1{font-family:'Instrument Serif',serif;color:var(--green);font-size:1.6rem;margin-bottom:4px;}
+  .auth-box .sub{color:var(--text-dim);font-size:.88rem;margin-bottom:22px;}
+  .msg-error{background:var(--red-dim);color:var(--red);border:1px solid var(--red-border);border-radius:10px;padding:9px 12px;font-size:.85rem;font-weight:600;margin-top:10px;display:none;}
+
+  /* SHARED */
+  .field{margin-top:10px;}
+  .field label{font-size:.75rem;font-weight:700;color:var(--text-dim);display:block;margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;}
+  .field input,.field select{width:100%;padding:10px 13px;border:1px solid var(--border-mid);border-radius:10px;font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;outline:none;transition:border .15s,box-shadow .15s;background:rgba(255,255,255,.04);color:var(--text);}
+  .field input:focus,.field select:focus{border-color:var(--green-border);box-shadow:0 0 0 3px rgba(52,211,153,.1);}
+  .field select option{background:#1c2330;color:var(--text);}
+  .field-row{display:flex;gap:10px;margin-top:10px;}
+  .field-row .field{flex:1;margin-top:0;}
+  .btn-primary{padding:10px 16px;background:var(--green);color:#0d1117;border:none;border-radius:11px;font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap;justify-content:center;box-shadow:0 0 20px rgba(52,211,153,.2);}
+  .btn-primary:hover{background:#6ee7b7;box-shadow:0 0 28px rgba(52,211,153,.35);}
+  .btn-primary:disabled{background:rgba(255,255,255,.12);color:var(--text-dim);cursor:default;box-shadow:none;}
+  .btn-secondary{flex:1;padding:10px;border:1px solid var(--border-mid);border-radius:10px;background:rgba(255,255,255,.04);font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;font-weight:600;cursor:pointer;color:var(--text-mid);transition:all .15s;}
+  .btn-secondary:hover{background:rgba(255,255,255,.08);border-color:var(--border-mid);}
+  .btn-outline{flex:1;padding:8px 12px;border:1px solid var(--green-border);border-radius:10px;background:var(--green-dim);color:var(--green);font-family:'Bricolage Grotesque',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s;}
+  .btn-outline:hover{background:rgba(52,211,153,.22);border-color:var(--green);}
+  .btn-delete{background:var(--red-dim);border:1px solid var(--red-border);border-radius:9px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--red);transition:all .15s;flex-shrink:0;}
+  .btn-delete:hover{background:rgba(248,113,113,.22);}
+
+  /* HEADER */
+  .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;box-shadow:0 0 8px var(--green);}
+  .sync-dot.syncing{background:var(--amber);box-shadow:0 0 8px var(--amber);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  header{background:rgba(22,27,34,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:13px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 0 var(--border),0 4px 24px rgba(0,0,0,.3);}
+  .header-title{font-family:'Instrument Serif',serif;font-size:1.25rem;font-weight:400;color:var(--green);display:flex;align-items:center;gap:9px;letter-spacing:-.01em;}
+  .header-actions{display:flex;gap:6px;align-items:center;}
+  .icon-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--text-mid);transition:all .15s;}
+  .icon-btn:hover{background:var(--green-dim);border-color:var(--green-border);color:var(--green);}
+  .user-pill{background:var(--green-dim);border:1px solid var(--green-border);border-radius:20px;padding:4px 11px;font-size:.73rem;font-weight:700;color:var(--green);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.03em;}
+
+  /* SORT */
+  .sort-dropdown{position:relative;}
+  .sort-menu{display:none;position:absolute;right:0;top:44px;background:var(--bg3);border:1px solid var(--border-mid);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:200;min-width:170px;overflow:hidden;}
+  .sort-menu.open{display:block;}
+  .sort-menu button{display:block;width:100%;padding:11px 16px;background:none;border:none;text-align:left;font-family:'Bricolage Grotesque',sans-serif;font-size:.9rem;cursor:pointer;color:var(--text-mid);transition:background .1s;}
+  .sort-menu button:hover{background:rgba(255,255,255,.06);color:var(--text);}
+  .sort-menu button.active{font-weight:800;color:var(--green);}
+
+  /* TABS */
+  .tabs{display:flex;background:rgba(22,27,34,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+  .tab{flex:1;padding:11px 4px;border:none;background:none;font-family:'Bricolage Grotesque',sans-serif;font-size:.8rem;font-weight:700;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:4px;letter-spacing:.02em;}
+  .tab.active{color:var(--green);border-bottom-color:var(--green);}
+  .badge{background:var(--green);color:#0d1117;border-radius:99px;font-size:.65rem;font-weight:800;padding:1px 6px;min-width:18px;text-align:center;}
+  .badge.red{background:var(--red);color:#fff;}
+
+  .content{flex:1;padding:12px;overflow-y:auto;}
+  .alert-banner{background:var(--amber-dim);border:1px solid var(--amber-border);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600;color:var(--amber);}
+
+  /* PRODUCT CARDS */
+  .product-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;box-shadow:var(--shadow);transition:border-color .2s,box-shadow .2s;}
+  .product-card:hover{border-color:var(--border-mid);box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 0 1px rgba(52,211,153,.08);}
+  .product-card.esaurito{border-color:var(--red-border);background:rgba(248,113,113,.04);}
+  .card-header{display:flex;align-items:center;padding:13px 14px;cursor:pointer;gap:10px;}
+  .card-icon{font-size:1.2rem;width:36px;height:36px;background:var(--green-dim);border:1px solid var(--green-border);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .card-main{flex:1;min-width:0;}
+  .card-name{font-weight:700;font-size:.97rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+  .card-meta{font-size:.75rem;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:5px;margin-top:3px;}
+  .chip{background:rgba(255,255,255,.06);color:var(--text-mid);border-radius:6px;padding:2px 7px;font-size:.72rem;font-weight:700;}
+  .chip.offerta{background:var(--amber-dim);color:var(--amber);}
+  .chip.sc-ok{background:var(--green-dim);color:var(--green);}
+  .chip.sc-warn{background:var(--amber-dim);color:var(--amber);}
+  .chip.sc-danger,.chip.sc-exp{background:var(--red-dim);color:var(--red);}
+  .chip.cat{background:var(--blue-dim);color:var(--blue);}
+  .chip.esaurito{background:var(--red-dim);color:var(--red);}
+  .qty-badge{background:var(--green-dim);color:var(--green);border:1px solid var(--green-border);border-radius:9px;padding:4px 10px;font-weight:800;font-size:.92rem;flex-shrink:0;}
+  .qty-badge.zero{background:var(--red-dim);color:var(--red);border-color:var(--red-border);}
+  .chevron{font-size:.7rem;color:var(--text-dim);transition:transform .2s;flex-shrink:0;}
+  .chevron.open{transform:rotate(90deg);}
+  .card-detail{display:none;padding:0 14px 14px;border-top:1px solid var(--border);}
+  .card-detail.open{display:block;animation:fadeIn .15s;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+  .qty-row{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px;}
+  .qty-btn{width:36px;height:36px;border-radius:50%;border:none;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;}
+  .qty-btn.minus{background:var(--red-dim);color:var(--red);}
+  .qty-btn.minus:disabled{opacity:.25;cursor:default;}
+  .qty-btn.plus{background:var(--green-dim);color:var(--green);}
+  .qty-num{font-size:1.4rem;font-weight:800;min-width:32px;text-align:center;color:var(--text);}
+  .action-row{display:flex;gap:8px;margin-top:12px;align-items:center;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:4px 0;}
+  .toggle-label{font-size:.85rem;font-weight:600;color:var(--text-mid);}
+  .toggle{position:relative;width:42px;height:24px;}
+  .toggle input{opacity:0;width:0;height:0;}
+  .toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.1);border-radius:24px;cursor:pointer;transition:background .2s;border:1px solid var(--border-mid);}
+  .toggle-slider::before{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--text-dim);transition:transform .2s,background .2s;}
+  .toggle input:checked+.toggle-slider{background:var(--green-dim);border-color:var(--green-border);}
+  .toggle input:checked+.toggle-slider::before{transform:translateX(18px);background:var(--green);}
+
+  /* SPESA */
+  .spesa-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;display:flex;align-items:center;padding:12px 14px;gap:10px;box-shadow:var(--shadow);}
+  .spesa-nome{flex:1;font-weight:700;font-size:.97rem;color:var(--text);}
+  .spesa-qty-ctrl{display:flex;align-items:center;gap:8px;}
+  .spesa-qty-num{font-weight:800;font-size:.95rem;min-width:22px;text-align:center;color:var(--text);}
+  .spesa-qty-btn{width:28px;height:28px;border-radius:50%;border:none;font-size:1rem;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .spesa-qty-btn.minus{background:var(--red-dim);color:var(--red);}
+  .spesa-qty-btn.minus:disabled{opacity:.25;cursor:default;}
+  .spesa-qty-btn.plus{background:var(--green-dim);color:var(--green);}
+
+  /* ADD BAR */
+  .add-bar{display:flex;gap:8px;padding:12px;background:rgba(22,27,34,.92);backdrop-filter:blur(12px);border-top:1px solid var(--border);position:sticky;bottom:0;}
+  .add-input{flex:1;padding:10px 14px;border:1px solid var(--border-mid);border-radius:11px;font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;outline:none;transition:border .15s,box-shadow .15s;background:rgba(255,255,255,.05);color:var(--text);}
+  .add-input:focus{border-color:var(--green-border);box-shadow:0 0 0 3px rgba(52,211,153,.1);}
+  .add-input::placeholder{color:var(--text-dim);}
+  .spesa-start-btn{margin:6px 0 10px;width:100%;padding:13px;background:var(--green);color:#0d1117;border:none;border-radius:var(--radius);font-family:'Bricolage Grotesque',sans-serif;font-size:1rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;box-shadow:0 0 24px rgba(52,211,153,.25);}
+  .spesa-start-btn:hover{background:#6ee7b7;box-shadow:0 0 32px rgba(52,211,153,.4);}
+
+  /* STATS */
+  .stat-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .stat-section h3{font-family:'Instrument Serif',serif;font-size:1.05rem;color:var(--green);margin-bottom:12px;letter-spacing:-.01em;}
+  .stat-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+  .stat-tab{padding:5px 13px;border-radius:20px;border:1px solid var(--border-mid);background:rgba(255,255,255,.04);font-family:'Bricolage Grotesque',sans-serif;font-size:.78rem;font-weight:700;color:var(--text-dim);cursor:pointer;transition:all .15s;}
+  .stat-tab.active{background:var(--green-dim);border-color:var(--green-border);color:var(--green);}
+  .kpi-row{display:flex;gap:8px;margin-bottom:14px;}
+  .kpi{flex:1;background:var(--green-dim);border:1px solid var(--green-border);border-radius:12px;padding:12px 10px;text-align:center;}
+  .kpi-val{font-size:1.3rem;font-weight:800;color:var(--green);}
+  .kpi-label{font-size:.7rem;color:var(--text-dim);margin-top:2px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+  .kpi.amber{background:var(--amber-dim);border-color:var(--amber-border);}
+  .kpi.amber .kpi-val{color:var(--amber);}
+  .kpi.red{background:var(--red-dim);border-color:var(--red-border);}
+  .kpi.red .kpi-val{color:var(--red);}
+  .best-price-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+  .best-price-row:last-child{border-bottom:none;}
+  .best-price-name{font-weight:700;font-size:.9rem;color:var(--text);}
+  .best-price-info{text-align:right;font-size:.8rem;color:var(--text-dim);}
+  .best-price-info strong{color:var(--green);font-size:.95rem;}
+  .trend-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);}
+  .trend-row:last-child{border-bottom:none;}
+  .trend-name{flex:1;font-weight:700;font-size:.88rem;color:var(--text);}
+  .trend-badge{font-size:.75rem;font-weight:800;padding:3px 9px;border-radius:8px;}
+  .trend-up{background:var(--red-dim);color:var(--red);}
+  .trend-down{background:var(--green-dim);color:var(--green);}
+  .trend-flat{background:rgba(255,255,255,.06);color:var(--text-dim);}
+  .negozio-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+  .negozio-row:last-child{border-bottom:none;}
+  .negozio-name{font-weight:700;font-size:.9rem;color:var(--text);display:flex;align-items:center;gap:6px;}
+  .negozio-info{text-align:right;font-size:.8rem;color:var(--text-dim);}
+  .negozio-info strong{display:block;color:var(--green);font-size:.95rem;}
+  .stat-empty{text-align:center;padding:28px;color:var(--text-dim);font-size:.88rem;line-height:1.6;}
+  .chart-container{position:relative;height:200px;margin-top:8px;}
+  .prodotto-select{width:100%;padding:9px 12px;border:1px solid var(--border-mid);border-radius:10px;font-family:'Bricolage Grotesque',sans-serif;font-size:.9rem;outline:none;background:rgba(255,255,255,.04);color:var(--text);margin-bottom:12px;}
+
+  /* MODAL */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;padding:16px;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--bg3);border:1px solid var(--border-mid);border-radius:20px;padding:24px 20px;width:100%;max-width:400px;box-shadow:0 16px 60px rgba(0,0,0,.6),0 0 0 1px rgba(52,211,153,.05);animation:modalIn .2s;}
+  @keyframes modalIn{from{transform:scale(.95) translateY(8px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+  .modal h2{font-family:'Instrument Serif',serif;font-size:1.25rem;margin-bottom:14px;color:var(--green);letter-spacing:-.01em;}
+  .modal-actions{display:flex;gap:10px;margin-top:20px;}
+
+  /* NEGOZIO SCREEN */
+  .negozio-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:400;flex-direction:column;max-width:540px;margin:0 auto;}
+  .negozio-screen.open{display:flex;}
+  .negozio-header{background:rgba(22,27,34,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+  .negozio-content{flex:1;overflow-y:auto;padding:12px;}
+  .negozio-footer{background:rgba(22,27,34,.92);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:14px 16px;}
+  .negozio-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:border-color .2s;}
+  .negozio-item.checked{background:var(--green-dim);border-color:var(--green-border);}
+  .negozio-item-header{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;}
+  .check-circle{width:24px;height:24px;border-radius:50%;border:2px solid var(--border-mid);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;transition:all .2s;}
+  .checked .check-circle{background:var(--green);border-color:var(--green);color:#0d1117;}
+  .negozio-item-detail{display:none;padding:0 14px 14px;border-top:1px solid var(--border);}
+  .negozio-item-detail.open{display:block;}
+  .totale-row{text-align:center;font-weight:700;font-size:.92rem;margin-bottom:10px;color:var(--green);}
+  .neg-add-panel{background:var(--bg3);border:1px solid var(--green-border);border-radius:var(--radius);padding:14px;margin-bottom:10px;animation:fadeIn .15s;}
+  .neg-add-panel h4{font-size:.88rem;font-weight:700;color:var(--green);margin-bottom:10px;letter-spacing:.02em;}
+  .neg-add-toggle{width:100%;margin-bottom:10px;padding:10px;background:var(--green-dim);border:1px dashed var(--green-border);border-radius:11px;font-family:'Bricolage Grotesque',sans-serif;font-size:.85rem;font-weight:700;color:var(--green);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;}
+  .neg-add-toggle:hover{background:rgba(52,211,153,.22);border-color:var(--green);}
+
+  /* AUTOCOMPLETE */
+  .autocomplete-wrap{position:relative;flex:1;}
+  .autocomplete-dropdown{display:none;position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:var(--bg3);border:1px solid var(--border-mid);border-radius:14px;box-shadow:0 -8px 32px rgba(0,0,0,.5);z-index:300;overflow:hidden;max-height:260px;overflow-y:auto;}
+  .autocomplete-dropdown.open{display:block;}
+  .ac-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;}
+  .ac-item:last-child{border-bottom:none;}
+  .ac-item:hover,.ac-item.selected{background:rgba(255,255,255,.06);}
+  .ac-item-left{display:flex;flex-direction:column;flex:1;min-width:0;}
+  .ac-item-nome{font-weight:700;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+  .ac-item-meta{font-size:.73rem;color:var(--text-dim);margin-top:1px;}
+  .ac-item-mine{font-size:.68rem;font-weight:700;background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-border);border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;}
+
+  /* SUGGEST CHIPS */
+  .suggest-box{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .suggest-chip{padding:5px 11px;border-radius:20px;border:1px solid var(--green-border);background:var(--green-dim);font-family:'Bricolage Grotesque',sans-serif;font-size:.78rem;font-weight:700;color:var(--green);cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap;}
+  .suggest-chip:hover{background:rgba(52,211,153,.22);border-color:var(--green);}
+  .suggest-chip .suggest-meta{font-size:.68rem;font-weight:400;color:var(--text-dim);margin-left:2px;}
+  .suggest-chip.mine{border-color:var(--amber-border);color:var(--amber);background:var(--amber-dim);}
+  .suggest-chip.mine:hover{background:rgba(251,191,36,.2);}
+
+  /* CATEGORY FILTER */
+  .cat-filter{display:flex;gap:6px;overflow-x:auto;padding:9px 12px;background:rgba(22,27,34,.7);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);scrollbar-width:none;}
+  .cat-filter::-webkit-scrollbar{display:none;}
+  .cat-pill{padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:rgba(255,255,255,.04);font-family:'Bricolage Grotesque',sans-serif;font-size:.77rem;font-weight:700;color:var(--text-dim);cursor:pointer;white-space:nowrap;transition:all .15s;}
+  .cat-pill.active{background:var(--green-dim);border-color:var(--green-border);color:var(--green);}
+
+  .empty-state{text-align:center;padding:52px 20px;color:var(--text-dim);}
+  .empty-state .emoji{font-size:3rem;display:block;margin-bottom:14px;filter:grayscale(.3);}
+  .loading{display:flex;align-items:center;justify-content:center;padding:52px;}
+  .spinner{width:36px;height:36px;border:2.5px solid rgba(52,211,153,.15);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--bg3);border:1px solid var(--green-border);color:var(--green);border-radius:12px;padding:10px 20px;font-size:.85rem;font-weight:700;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 16px rgba(52,211,153,.15);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- SETUP -->
+  <div class="setup-screen" id="setupScreen">
+    <div class="setup-box">
+      <h1>🌿 La Mia Credenza</h1>
+      <p>Prima configurazione: collega il tuo database Supabase.</p>
+      <div class="step"><strong>1.</strong> Crea un progetto su <strong>supabase.com</strong></div>
+      <div class="step"><strong>2.</strong> Esegui lo script SQL nel <strong>SQL Editor</strong><br><br>
+        <button class="btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="copySql()">📋 Copia SQL</button>
+      </div>
+      <div class="step"><strong>3.</strong> Da <strong>Project Settings → API</strong> copia URL e chiave anon</div>
+      <div class="field"><label>Project URL</label><input id="cfg-url" placeholder="https://xxxx.supabase.co"/></div>
+      <div class="field"><label>Anon Key</label><input id="cfg-key" placeholder="eyJ..."/></div>
+      <p id="cfg-err" class="msg-error"></p>
+      <button class="btn-primary" style="width:100%;margin-top:16px" onclick="saveSetup()">🚀 Collega</button>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <div class="auth-screen hidden" id="authScreen">
+    <div class="auth-box">
+      <h1>🌿 La Mia Credenza</h1>
+      <p class="sub">Accedi per gestire la lista condivisa</p>
+      <div class="field"><label>Email</label><input type="email" id="auth-email" placeholder="nome@email.com" onkeydown="if(event.key==='Enter')submitAuth()"/></div>
+      <div class="field"><label>Password</label><input type="password" id="auth-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitAuth()"/></div>
+      <p id="auth-err" class="msg-error"></p>
+      <button class="btn-primary" id="authBtn" style="width:100%;margin-top:16px" onclick="submitAuth()">Accedi</button>
+      <button style="width:100%;margin-top:10px;background:none;border:none;font-family:'Bricolage Grotesque',sans-serif;font-size:.82rem;color:var(--text-mid);cursor:pointer;text-decoration:underline" onclick="changeSetup()">Cambia credenziali Supabase</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="mainApp" class="hidden" style="flex-direction:column;flex:1">
+    <header>
+      <div class="header-title">🌿 Credenza <span class="sync-dot" id="syncDot"></span></div>
+      <div class="header-actions" id="headerActions">
+        <span class="user-pill" id="userPill"></span>
+        <div class="sort-dropdown" id="sortDropdown">
+          <button class="icon-btn" onclick="toggleSort()">⇅</button>
+          <div class="sort-menu" id="sortMenu">
+            <button onclick="setSort('nome')" id="sort-nome" class="active">📝 Per nome</button>
+            <button onclick="setSort('scadenza')" id="sort-scadenza">📅 Per scadenza</button>
+            <button onclick="setSort('quantita')" id="sort-quantita">🔢 Per quantità</button>
+            <button onclick="setSort('categoria')" id="sort-categoria">📂 Per macrogruppo</button>
+          </div>
+        </div>
+        <button class="icon-btn" onclick="openAddModal()">＋</button>
+        <button class="icon-btn" onclick="apriGerarchiaModal()" title="Gestisci categorie">🗂️</button>
+        <button class="icon-btn" onclick="doLogout()" title="Esci">🚪</button>
+      </div>
+    </header>
+    <div class="tabs">
+      <button class="tab active" id="tab0" onclick="switchTab(0)">🏠 Credenza <span class="badge" id="badge-credenza">0</span></button>
+      <button class="tab" id="tab1" onclick="switchTab(1)">🛒 Spesa <span class="badge" id="badge-spesa">0</span></button>
+      <button class="tab" id="tab2" onclick="switchTab(2)">📊 Statistiche</button>
+    </div>
+    <!-- Filtro categorie (solo tab credenza) -->
+    <div class="cat-filter hidden" id="catFilter"></div>
+    <div class="content" id="mainContent"><div class="loading"><div class="spinner"></div></div></div>
+    <div class="add-bar hidden" id="addBar">
+    <div class="autocomplete-wrap">
+      <input class="add-input" id="quickAddInput" placeholder="Nome prodotto…"
+        oninput="onQuickInput()" onkeydown="onQuickKey(event)"
+        autocomplete="off">
+      <div class="autocomplete-dropdown" id="quickDropdown"></div>
+    </div>
+      <button class="btn-primary" onclick="quickAdd()">＋ Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <h2 id="modalTitle">➕ Nuovo Prodotto</h2>
+    <div class="field"><label>Nome prodotto / Marchio *</label><input id="f-nome" placeholder="es. Activia Magro, Barilla Fusilli…" oninput="onModalNomeInput()" autocomplete="off"/><div class="suggest-box" id="modal-suggest-box"></div></div>
+    <div class="field-row">
+      <div class="field"><label>Macrogruppo</label>
+        <select id="f-macrogruppo" onchange="onModalMacroChange()">
+          <option value="">— Macrogruppo —</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipologia</label>
+        <select id="f-tipologia" disabled>
+          <option value="">— Tipologia —</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Soglia minima</label><input id="f-soglia" type="number" min="0" placeholder="0" title="Sotto questa quantità va in spesa"/></div>
+    <div class="field-row">
+      <div class="field"><label>Scadenza</label><input id="f-scadenza" placeholder="gg/mm/aaaa" maxlength="10" inputmode="numeric"/></div>
+      <div class="field"><label>Prezzo €</label><input id="f-prezzo" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Peso</label><input id="f-peso" placeholder="500g"/></div>
+      <div class="field"><label>Negozio</label><input id="f-negozio" placeholder="Coop…"/></div>
+    </div>
+    <div class="field"><label>Quantità</label>
+      <div class="qty-row" style="justify-content:flex-start;gap:10px;margin-top:4px">
+        <button class="qty-btn minus" onclick="changeModalQty(-1)">−</button>
+        <span class="qty-num" id="modal-qty">1</span>
+        <button class="qty-btn plus" onclick="changeModalQty(1)">＋</button>
+      </div>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">🏷️ In offerta</span>
+      <label class="toggle"><input type="checkbox" id="f-offerta"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Annulla</button>
+      <button class="btn-primary" onclick="saveModal()" style="flex:1">✓ Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP PRODOTTO ESAURITO -->
+<div class="overlay" id="esauritoModal">
+  <div class="modal">
+    <h2>📦 Prodotto esaurito</h2>
+    <p id="esauritoMsg" style="font-size:.95rem;color:var(--text-mid);line-height:1.5;"></p>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="chiudiEsaurito()">No, grazie</button>
+      <button class="btn-primary" onclick="aggiungiEsauritoASpesa()" style="flex:1">🛒 Aggiungi alla spesa</button>
+    </div>
+  </div>
+</div>
+
+<!-- GESTIONE GERARCHIA -->
+<div class="overlay" id="gerarchiaModal">
+  <div class="modal">
+    <h2>🗂️ Gestisci categorie</h2>
+    <div id="gerarchiaContent"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn-primary" onclick="chiudiGerarchiaModal()" style="width:100%">✓ Fatto</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEGOZIO DIALOG -->
+<div class="overlay" id="negozioDialog">
+  <div class="modal">
+    <h2>🛍️ In quale negozio sei?</h2>
+    <div class="field"><input id="negozioInput" placeholder="es. Esselunga, Coop…" onkeydown="if(event.key==='Enter')startSpesa()"/></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeNegozioDialog()">Annulla</button>
+      <button class="btn-primary" onclick="startSpesa()" style="flex:1">🛒 Inizia</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEGOZIO SCREEN -->
+<div class="negozio-screen" id="negozioScreen">
+  <div class="negozio-header">
+    <button class="icon-btn" onclick="closeNegozioScreen()">←</button>
+    <div class="header-title" id="negozioTitle">🛍️ Spesa</div>
+  </div>
+  <div class="negozio-content" id="negozioContent"></div>
+  <div class="negozio-footer">
+    <div id="negAddPanel" class="neg-add-panel" style="display:none">
+      <h4>➕ Aggiungi prodotto alla spesa</h4>
+      <div class="field"><label>Nome *</label><input id="neg-f-nome" placeholder="es. Latte, Mozzarella…" oninput="onNegNomeInput()" autocomplete="off"/><div class="suggest-box" id="neg-suggest-box"></div></div>
+      <div class="field-row">
+        <div class="field"><label>Macrogruppo</label>
+          <select id="neg-f-macrogruppo" onchange="onNegMacroChange()">
+            <option value="">— Macrogruppo —</option>
+          </select>
+        </div>
+        <div class="field"><label>Tipologia</label>
+          <select id="neg-f-tipologia" disabled>
+            <option value="">— Tipologia —</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Quantità</label><input id="neg-f-qty" type="number" min="1" value="1" placeholder="1"/></div>
+        <div class="field"><label>Prezzo €</label><input id="neg-f-prezzo" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+      </div>
+      <div class="field"><label>Peso</label><input id="neg-f-peso" placeholder="500g"/></div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="btn-secondary" onclick="toggleNegAdd(false)" style="flex:0 0 auto;padding:9px 16px">Annulla</button>
+        <button class="btn-primary" onclick="saveNegAdd()" style="flex:1">✓ Aggiungi</button>
+      </div>
+    </div>
+    <button class="neg-add-toggle" id="negAddToggleBtn" onclick="toggleNegAdd(true)">➕ Aggiungi un prodotto</button>
+    <div class="totale-row" id="totaleRow" style="display:none"></div>
+    <button class="spesa-start-btn" id="completaBtn" onclick="completaSpesa()" disabled>✓ SPESA ULTIMATA (0)</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SQL_SETUP = `-- Tabella prodotti
+CREATE TABLE prodotti (
+  id            BIGSERIAL PRIMARY KEY,
+  nome          TEXT    NOT NULL,
+  quantita      INTEGER NOT NULL DEFAULT 1,
+  scadenza      TEXT    NOT NULL DEFAULT '',
+  prezzo        REAL    NOT NULL DEFAULT 0.0,
+  peso          TEXT    NOT NULL DEFAULT '',
+  negozio       TEXT    NOT NULL DEFAULT '',
+  "inOfferta"   BOOLEAN NOT NULL DEFAULT false,
+  "inSpesa"     BOOLEAN NOT NULL DEFAULT false,
+  tipologia     TEXT    NOT NULL DEFAULT '',
+  macrogruppo   TEXT    NOT NULL DEFAULT '',
+  soglia_minima INTEGER NOT NULL DEFAULT 0
+);
+-- Se hai già la tabella con 'categoria', esegui questa migrazione:
+-- ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS tipologia TEXT NOT NULL DEFAULT '';
+-- ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS macrogruppo TEXT NOT NULL DEFAULT '';
+-- UPDATE prodotti SET macrogruppo = categoria WHERE macrogruppo = '';
+-- ALTER TABLE prodotti DROP COLUMN IF EXISTS categoria;
+ALTER TABLE prodotti ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "utenti autenticati" ON prodotti FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabella storico prezzi
+CREATE TABLE storico_prezzi (
+  id          BIGSERIAL PRIMARY KEY,
+  nome        TEXT        NOT NULL,
+  prezzo      REAL        NOT NULL,
+  quantita    INTEGER     NOT NULL DEFAULT 1,
+  negozio     TEXT        NOT NULL DEFAULT '',
+  macrogruppo TEXT        NOT NULL DEFAULT '',
+  tipologia   TEXT        NOT NULL DEFAULT '',
+  data        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE storico_prezzi ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "utenti autenticati" ON storico_prezzi FOR ALL TO authenticated USING (true) WITH CHECK (true);`;
+
+// ── GERARCHIA MACROGRUPPO → TIPOLOGIE ─────────────────
+const GERARCHIA_DEFAULT = {
+  'Latticini':     ['Latte','Yogurt','Formaggio','Burro','Panna','Mozzarella','Ricotta'],
+  'Carne':         ['Manzo','Maiale','Pollo','Tacchino','Agnello','Salumi','Wurstel'],
+  'Pesce':         ['Pesce fresco','Pesce surgelato','Tonno','Salmone','Frutti di mare'],
+  'Pasta e Riso':  ['Pasta','Riso','Gnocchi','Cous Cous','Polenta'],
+  'Pane e Forno':  ['Pane','Grissini','Crackers','Fette biscottate','Cereali'],
+  'Verdura':       ['Insalata','Pomodori','Zucchine','Carote','Patate','Cipolla','Spinaci','Funghi'],
+  'Frutta':        ['Mele','Pere','Arance','Banane','Frutti di bosco','Uva','Kiwi'],
+  'Legumi':        ['Fagioli','Ceci','Lenticchie','Piselli'],
+  'Uova':          ['Uova fresche'],
+  'Conserve':      ['Passata','Pelati','Olive','Sottoli','Legumi in scatola'],
+  'Dolci':         ['Biscotti','Cioccolato','Marmellata','Miele','Merendine'],
+  'Bevande':       ['Acqua','Succhi','Bibite','Vino','Birra','Caffè','Tè'],
+  'Surgelati':     ['Verdure surgelate','Piatti pronti','Gelati','Pizza surgelata'],
+  'Condimenti':    ['Olio','Aceto','Sale','Pepe','Spezie','Salse'],
+  'Pulizia':       ['Detersivo piatti','Detersivo lavatrice','Multiuso','Bagno'],
+  'Igiene':        ['Shampoo','Sapone','Dentifricio','Carta igienica'],
+  'Altro':         ['Generico'],
+};
+
+const CFG_KEY = 'credenza_sb_cfg';
+
+let gerarchia = JSON.parse(JSON.stringify(GERARCHIA_DEFAULT));
+let sb = null;
+let prodotti = [];
+let storicoCache = [];
+let currentTab = 0;
+let sortMode = 'nome';
+let macroFilter = 'tutti';
+let editingId = null;
+let modalQty = 1;
+let negozioItems = [];
+let currentUser = null;
+let pollTimer = null;
+let lastHash = '';
+let esauritoPendente = null;
+
+// ── SETUP ──────────────────────────────────────────────
+function loadCfg(){try{const r=localStorage.getItem(CFG_KEY);return r?JSON.parse(r):null;}catch{return null;}}
+function saveSetup(){
+  try{
+    const url=document.getElementById('cfg-url').value.trim();
+    const key=document.getElementById('cfg-key').value.trim();
+    const err=document.getElementById('cfg-err');
+    if(!url||!key){showMsg(err,'Inserisci entrambi i valori.');return;}
+    if(!url.startsWith('https://')){showMsg(err,'URL non valido.');return;}
+    try{localStorage.setItem(CFG_KEY,JSON.stringify({url,key}));}catch(e){showMsg(err,'Impossibile salvare: '+e.message);return;}
+    initSb(url,key);
+  }catch(e){const err=document.getElementById('cfg-err');err.textContent='Errore: '+e.message;err.style.display='block';}
+}
+function changeSetup(){localStorage.removeItem(CFG_KEY);location.reload();}
+function copySql(){navigator.clipboard.writeText(SQL_SETUP).then(()=>showToast('✓ SQL copiato!'));}
+function initSb(url,key){
+  sb=window.supabase.createClient(url,key);
+  show('setupScreen',false);
+  checkSession();
+}
+
+// ── AUTH ──────────────────────────────────────────────
+async function checkSession(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(session)onLogin(session.user);
+  else show('authScreen',true);
+}
+async function submitAuth(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pwd=document.getElementById('auth-pwd').value;
+  const errEl=document.getElementById('auth-err');
+  if(!email||!pwd){showMsg(errEl,'Inserisci email e password.');return;}
+  hideMsg('auth-err');
+  document.getElementById('authBtn').disabled=true;
+  const result=await sb.auth.signInWithPassword({email,password:pwd});
+  document.getElementById('authBtn').disabled=false;
+  if(result.error){showMsg(errEl,translateAuthError(result.error.message));return;}
+  if(result.data.session)onLogin(result.data.user);
+}
+function translateAuthError(msg){
+  if(msg.includes('Invalid login'))return 'Email o password errati.';
+  if(msg.includes('Password should'))return 'Password di almeno 6 caratteri.';
+  return msg;
+}
+function onLogin(user){
+  currentUser=user;
+  show('authScreen',false);
+  show('mainApp',true);
+  document.getElementById('userPill').textContent=user.email.split('@')[0];
+  loadGerarchia();
+  loadAll();
+  startPolling();
+}
+async function doLogout(){
+  stopPolling();
+  await sb.auth.signOut();
+  currentUser=null;prodotti=[];
+  show('mainApp',false);
+  show('authScreen',true);
+  document.getElementById('auth-email').value='';
+  document.getElementById('auth-pwd').value='';
+}
+
+// ── GERARCHIA MANAGEMENT ──────────────────────────────
+function loadGerarchia(){
+  try{const r=localStorage.getItem('credenza_gerarchia');if(r)gerarchia=JSON.parse(r);}catch{}
+}
+function salvaGerarchia(){localStorage.setItem('credenza_gerarchia',JSON.stringify(gerarchia));}
+
+function getMacrogruppi(){return Object.keys(gerarchia);}
+function getTipologie(macro){return macro&&gerarchia[macro]?gerarchia[macro]:[];}
+
+// Popola select macrogruppo in un elemento select
+function popolaMacro(selId, valoreCorrente=''){
+  const sel=document.getElementById(selId);if(!sel)return;
+  sel.innerHTML='<option value="">— Macrogruppo —</option>';
+  getMacrogruppi().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===valoreCorrente)o.selected=true;sel.appendChild(o);});
+}
+// Popola select tipologia in base al macrogruppo scelto
+function popolaTipo(selId, macro, valoreCorrente=''){
+  const sel=document.getElementById(selId);if(!sel)return;
+  const tips=getTipologie(macro);
+  sel.innerHTML='<option value="">— Tipologia —</option>';
+  tips.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===valoreCorrente)o.selected=true;sel.appendChild(o);});
+  sel.disabled=!macro;
+}
+
+// Gestione modale gerarchia
+function apriGerarchiaModal(){
+  renderGerarchiaModal();
+  document.getElementById('gerarchiaModal').classList.add('open');
+}
+function chiudiGerarchiaModal(){
+  document.getElementById('gerarchiaModal').classList.remove('open');
+  // aggiorna i select nel modal add aperto
+  const macro=document.getElementById('f-macrogruppo')?.value||'';
+  popolaMacro('f-macrogruppo', macro);
+  popolaTipo('f-tipologia', macro, document.getElementById('f-tipologia')?.value||'');
+  renderMacroFilter();
+}
+function renderGerarchiaModal(){
+  const el=document.getElementById('gerarchiaContent');if(!el)return;
+  const selMacro=document.getElementById('gerSelMacro')?.value||getMacrogruppi()[0]||'';
+  let html=`<div style="margin-bottom:12px">
+    <label style="font-size:.8rem;font-weight:700;color:var(--text-mid);display:block;margin-bottom:4px">Macrogruppo</label>
+    <div style="display:flex;gap:8px">
+      <select id="gerSelMacro" style="flex:1;padding:8px 10px;border:1px solid rgba(255,255,255,.11);border-radius:9px;font-family:'Bricolage Grotesque',sans-serif;font-size:.9rem;background:rgba(255,255,255,.04);color:var(--text)" onchange="renderGerarchiaModal()">
+        ${getMacrogruppi().map(m=>`<option value="${esc(m)}" ${m===selMacro?'selected':''}>${esc(m)}</option>`).join('')}
+      </select>
+      <button class="btn-delete" onclick="eliminaMacro('${esc(selMacro)}')" title="Elimina macrogruppo" style="flex-shrink:0">🗑</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input id="gerNuovoMacro" class="add-input" placeholder="Nuovo macrogruppo…" style="flex:1;padding:8px 12px">
+      <button class="btn-primary" onclick="aggiungiMacro()">＋</button>
+    </div>
+  </div>
+  <div style="border-top:1.5px solid var(--border);padding-top:10px">
+    <label style="font-size:.8rem;font-weight:700;color:var(--text-mid);display:block;margin-bottom:6px">Tipologie di <strong>${esc(selMacro)}</strong></label>
+    <div style="max-height:160px;overflow-y:auto;margin-bottom:8px">
+      ${(gerarchia[selMacro]||[]).map((t,i)=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:.9rem;font-weight:600">${esc(t)}</span>
+          <button class="btn-delete" onclick="eliminaTipo('${esc(selMacro)}',${i})" style="width:26px;height:26px;font-size:.8rem">🗑</button>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="gerNuovaTipo" class="add-input" placeholder="Nuova tipologia…" style="flex:1;padding:8px 12px" onkeydown="if(event.key==='Enter')aggiungiTipo()">
+      <button class="btn-primary" onclick="aggiungiTipo()">＋</button>
+    </div>
+  </div>`;
+  el.innerHTML=html;
+}
+function aggiungiMacro(){
+  const nome=document.getElementById('gerNuovoMacro').value.trim();
+  if(!nome||gerarchia[nome])return;
+  gerarchia[nome]=[];salvaGerarchia();
+  document.getElementById('gerNuovoMacro').value='';
+  // seleziona il nuovo
+  renderGerarchiaModal();
+  setTimeout(()=>{const s=document.getElementById('gerSelMacro');if(s)s.value=nome;renderGerarchiaModal();},50);
+}
+function aggiungiTipo(){
+  const macro=document.getElementById('gerSelMacro').value;
+  const nome=document.getElementById('gerNuovaTipo').value.trim();
+  if(!macro||!nome||gerarchia[macro].includes(nome))return;
+  gerarchia[macro].push(nome);salvaGerarchia();
+  document.getElementById('gerNuovaTipo').value='';
+  renderGerarchiaModal();
+}
+function eliminaMacro(macro){
+  if(!gerarchia[macro])return;
+  if(!confirm(`Eliminare il macrogruppo "${macro}" e tutte le sue tipologie?`))return;
+  delete gerarchia[macro];salvaGerarchia();renderGerarchiaModal();
+}
+function eliminaTipo(macro,i){
+  if(!gerarchia[macro])return;
+  gerarchia[macro].splice(i,1);salvaGerarchia();renderGerarchiaModal();
+}
+
+// ── CATALOGO PRODOTTI PREDEFINITI ─────────────────────
+const CATALOGO = [
+  // Latticini – Latte
+  {nome:'Latte intero',macrogruppo:'Latticini',tipologia:'Latte'},
+  {nome:'Latte parzialmente scremato',macrogruppo:'Latticini',tipologia:'Latte'},
+  {nome:'Latte scremato',macrogruppo:'Latticini',tipologia:'Latte'},
+  {nome:'Latte senza lattosio',macrogruppo:'Latticini',tipologia:'Latte'},
+  {nome:'Latte di soia',macrogruppo:'Latticini',tipologia:'Latte'},
+  {nome:'Latte di avena',macrogruppo:'Latticini',tipologia:'Latte'},
+  // Latticini – Yogurt
+  {nome:'Yogurt bianco intero',macrogruppo:'Latticini',tipologia:'Yogurt'},
+  {nome:'Yogurt magro',macrogruppo:'Latticini',tipologia:'Yogurt'},
+  {nome:'Yogurt greco',macrogruppo:'Latticini',tipologia:'Yogurt'},
+  {nome:'Yogurt alla frutta',macrogruppo:'Latticini',tipologia:'Yogurt'},
+  {nome:'Yogurt Activia',macrogruppo:'Latticini',tipologia:'Yogurt'},
+  {nome:'Yogurt Müller',macrogruppo:'Latticini',tipologia:'Yogurt'},
+  // Latticini – Formaggio
+  {nome:'Parmigiano Reggiano',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  {nome:'Grana Padano',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  {nome:'Pecorino',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  {nome:'Provola',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  {nome:'Scamorza',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  {nome:'Emmental',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  {nome:'Asiago',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  {nome:'Taleggio',macrogruppo:'Latticini',tipologia:'Formaggio'},
+  // Latticini – Mozzarella
+  {nome:'Mozzarella fior di latte',macrogruppo:'Latticini',tipologia:'Mozzarella'},
+  {nome:'Mozzarella di bufala',macrogruppo:'Latticini',tipologia:'Mozzarella'},
+  {nome:'Mozzarella per pizza',macrogruppo:'Latticini',tipologia:'Mozzarella'},
+  // Latticini – Burro/Panna/Ricotta
+  {nome:'Burro',macrogruppo:'Latticini',tipologia:'Burro'},
+  {nome:'Panna fresca',macrogruppo:'Latticini',tipologia:'Panna'},
+  {nome:'Panna da cucina',macrogruppo:'Latticini',tipologia:'Panna'},
+  {nome:'Ricotta',macrogruppo:'Latticini',tipologia:'Ricotta'},
+  // Uova
+  {nome:'Uova fresche',macrogruppo:'Uova',tipologia:'Uova fresche'},
+  {nome:'Uova biologiche',macrogruppo:'Uova',tipologia:'Uova fresche'},
+  // Carne
+  {nome:'Petto di pollo',macrogruppo:'Carne',tipologia:'Pollo'},
+  {nome:'Cosce di pollo',macrogruppo:'Carne',tipologia:'Pollo'},
+  {nome:'Pollo intero',macrogruppo:'Carne',tipologia:'Pollo'},
+  {nome:'Macinato di manzo',macrogruppo:'Carne',tipologia:'Manzo'},
+  {nome:'Bistecca di manzo',macrogruppo:'Carne',tipologia:'Manzo'},
+  {nome:'Roast beef',macrogruppo:'Carne',tipologia:'Manzo'},
+  {nome:'Fesa di tacchino',macrogruppo:'Carne',tipologia:'Tacchino'},
+  {nome:'Costine di maiale',macrogruppo:'Carne',tipologia:'Maiale'},
+  {nome:'Lonza di maiale',macrogruppo:'Carne',tipologia:'Maiale'},
+  {nome:'Prosciutto cotto',macrogruppo:'Carne',tipologia:'Salumi'},
+  {nome:'Prosciutto crudo',macrogruppo:'Carne',tipologia:'Salumi'},
+  {nome:'Mortadella',macrogruppo:'Carne',tipologia:'Salumi'},
+  {nome:'Salame',macrogruppo:'Carne',tipologia:'Salumi'},
+  {nome:'Bresaola',macrogruppo:'Carne',tipologia:'Salumi'},
+  {nome:'Wurstel',macrogruppo:'Carne',tipologia:'Wurstel'},
+  // Pesce
+  {nome:'Salmone fresco',macrogruppo:'Pesce',tipologia:'Salmone'},
+  {nome:'Salmone affumicato',macrogruppo:'Pesce',tipologia:'Salmone'},
+  {nome:'Tonno in scatola',macrogruppo:'Pesce',tipologia:'Tonno'},
+  {nome:'Merluzzo',macrogruppo:'Pesce',tipologia:'Pesce fresco'},
+  {nome:'Orata',macrogruppo:'Pesce',tipologia:'Pesce fresco'},
+  {nome:'Branzino',macrogruppo:'Pesce',tipologia:'Pesce fresco'},
+  {nome:'Gamberi',macrogruppo:'Pesce',tipologia:'Frutti di mare'},
+  {nome:'Cozze',macrogruppo:'Pesce',tipologia:'Frutti di mare'},
+  {nome:'Vongole',macrogruppo:'Pesce',tipologia:'Frutti di mare'},
+  {nome:'Filetti di merluzzo surgelati',macrogruppo:'Pesce',tipologia:'Pesce surgelato'},
+  // Pasta e Riso
+  {nome:'Spaghetti',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
+  {nome:'Penne rigate',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
+  {nome:'Fusilli',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
+  {nome:'Rigatoni',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
+  {nome:'Farfalle',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
+  {nome:'Tagliatelle',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
+  {nome:'Lasagne',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
+  {nome:'Riso Carnaroli',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
+  {nome:'Riso Arborio',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
+  {nome:'Riso Basmati',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
+  {nome:'Riso integrale',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
+  {nome:'Gnocchi di patate',macrogruppo:'Pasta e Riso',tipologia:'Gnocchi'},
+  {nome:'Cous cous',macrogruppo:'Pasta e Riso',tipologia:'Cous Cous'},
+  {nome:'Polenta',macrogruppo:'Pasta e Riso',tipologia:'Polenta'},
+  // Pane e Forno
+  {nome:'Pane di casa',macrogruppo:'Pane e Forno',tipologia:'Pane'},
+  {nome:'Pane integrale',macrogruppo:'Pane e Forno',tipologia:'Pane'},
+  {nome:'Pancarré',macrogruppo:'Pane e Forno',tipologia:'Pane'},
+  {nome:'Grissini',macrogruppo:'Pane e Forno',tipologia:'Grissini'},
+  {nome:'Crackers',macrogruppo:'Pane e Forno',tipologia:'Crackers'},
+  {nome:'Fette biscottate',macrogruppo:'Pane e Forno',tipologia:'Fette biscottate'},
+  {nome:'Cereali da colazione',macrogruppo:'Pane e Forno',tipologia:'Cereali'},
+  {nome:'Müesli',macrogruppo:'Pane e Forno',tipologia:'Cereali'},
+  {nome:'Fiocchi d\'avena',macrogruppo:'Pane e Forno',tipologia:'Cereali'},
+  // Verdura
+  {nome:'Pomodori',macrogruppo:'Verdura',tipologia:'Pomodori'},
+  {nome:'Pomodorini ciliegino',macrogruppo:'Verdura',tipologia:'Pomodori'},
+  {nome:'Insalata mista',macrogruppo:'Verdura',tipologia:'Insalata'},
+  {nome:'Rucola',macrogruppo:'Verdura',tipologia:'Insalata'},
+  {nome:'Spinaci',macrogruppo:'Verdura',tipologia:'Spinaci'},
+  {nome:'Zucchine',macrogruppo:'Verdura',tipologia:'Zucchine'},
+  {nome:'Melanzane',macrogruppo:'Verdura',tipologia:'Zucchine'},
+  {nome:'Peperoni',macrogruppo:'Verdura',tipologia:'Zucchine'},
+  {nome:'Carote',macrogruppo:'Verdura',tipologia:'Carote'},
+  {nome:'Patate',macrogruppo:'Verdura',tipologia:'Patate'},
+  {nome:'Cipolla',macrogruppo:'Verdura',tipologia:'Cipolla'},
+  {nome:'Aglio',macrogruppo:'Verdura',tipologia:'Cipolla'},
+  {nome:'Funghi champignon',macrogruppo:'Verdura',tipologia:'Funghi'},
+  {nome:'Funghi porcini',macrogruppo:'Verdura',tipologia:'Funghi'},
+  {nome:'Broccoli',macrogruppo:'Verdura',tipologia:'Carote'},
+  {nome:'Cavolfiore',macrogruppo:'Verdura',tipologia:'Carote'},
+  {nome:'Finocchi',macrogruppo:'Verdura',tipologia:'Carote'},
+  // Frutta
+  {nome:'Mele',macrogruppo:'Frutta',tipologia:'Mele'},
+  {nome:'Pere',macrogruppo:'Frutta',tipologia:'Pere'},
+  {nome:'Arance',macrogruppo:'Frutta',tipologia:'Arance'},
+  {nome:'Limoni',macrogruppo:'Frutta',tipologia:'Arance'},
+  {nome:'Banane',macrogruppo:'Frutta',tipologia:'Banane'},
+  {nome:'Fragole',macrogruppo:'Frutta',tipologia:'Frutti di bosco'},
+  {nome:'Mirtilli',macrogruppo:'Frutta',tipologia:'Frutti di bosco'},
+  {nome:'Lamponi',macrogruppo:'Frutta',tipologia:'Frutti di bosco'},
+  {nome:'Uva',macrogruppo:'Frutta',tipologia:'Uva'},
+  {nome:'Kiwi',macrogruppo:'Frutta',tipologia:'Kiwi'},
+  {nome:'Pesche',macrogruppo:'Frutta',tipologia:'Pere'},
+  {nome:'Albicocche',macrogruppo:'Frutta',tipologia:'Pere'},
+  // Legumi
+  {nome:'Fagioli borlotti',macrogruppo:'Legumi',tipologia:'Fagioli'},
+  {nome:'Fagioli cannellini',macrogruppo:'Legumi',tipologia:'Fagioli'},
+  {nome:'Ceci',macrogruppo:'Legumi',tipologia:'Ceci'},
+  {nome:'Lenticchie',macrogruppo:'Legumi',tipologia:'Lenticchie'},
+  {nome:'Piselli',macrogruppo:'Legumi',tipologia:'Piselli'},
+  // Conserve
+  {nome:'Passata di pomodoro',macrogruppo:'Conserve',tipologia:'Passata'},
+  {nome:'Pelati',macrogruppo:'Conserve',tipologia:'Pelati'},
+  {nome:'Polpa di pomodoro',macrogruppo:'Conserve',tipologia:'Passata'},
+  {nome:'Olive verdi',macrogruppo:'Conserve',tipologia:'Olive'},
+  {nome:'Olive nere',macrogruppo:'Conserve',tipologia:'Olive'},
+  {nome:'Capperi',macrogruppo:'Conserve',tipologia:'Sottoli'},
+  {nome:'Sottaceti',macrogruppo:'Conserve',tipologia:'Sottoli'},
+  {nome:'Fagioli in scatola',macrogruppo:'Conserve',tipologia:'Legumi in scatola'},
+  {nome:'Ceci in scatola',macrogruppo:'Conserve',tipologia:'Legumi in scatola'},
+  {nome:'Lenticchie in scatola',macrogruppo:'Conserve',tipologia:'Legumi in scatola'},
+  // Condimenti
+  {nome:'Olio extravergine d\'oliva',macrogruppo:'Condimenti',tipologia:'Olio'},
+  {nome:'Olio di semi',macrogruppo:'Condimenti',tipologia:'Olio'},
+  {nome:'Aceto di vino',macrogruppo:'Condimenti',tipologia:'Aceto'},
+  {nome:'Aceto balsamico',macrogruppo:'Condimenti',tipologia:'Aceto'},
+  {nome:'Sale fino',macrogruppo:'Condimenti',tipologia:'Sale'},
+  {nome:'Sale grosso',macrogruppo:'Condimenti',tipologia:'Sale'},
+  {nome:'Pepe nero',macrogruppo:'Condimenti',tipologia:'Pepe'},
+  {nome:'Origano',macrogruppo:'Condimenti',tipologia:'Spezie'},
+  {nome:'Basilico',macrogruppo:'Condimenti',tipologia:'Spezie'},
+  {nome:'Rosmarino',macrogruppo:'Condimenti',tipologia:'Spezie'},
+  {nome:'Ketchup',macrogruppo:'Condimenti',tipologia:'Salse'},
+  {nome:'Maionese',macrogruppo:'Condimenti',tipologia:'Salse'},
+  {nome:'Senape',macrogruppo:'Condimenti',tipologia:'Salse'},
+  // Dolci
+  {nome:'Biscotti frollini',macrogruppo:'Dolci',tipologia:'Biscotti'},
+  {nome:'Biscotti integrali',macrogruppo:'Dolci',tipologia:'Biscotti'},
+  {nome:'Cioccolato fondente',macrogruppo:'Dolci',tipologia:'Cioccolato'},
+  {nome:'Cioccolato al latte',macrogruppo:'Dolci',tipologia:'Cioccolato'},
+  {nome:'Nutella',macrogruppo:'Dolci',tipologia:'Marmellata'},
+  {nome:'Marmellata di fragole',macrogruppo:'Dolci',tipologia:'Marmellata'},
+  {nome:'Miele',macrogruppo:'Dolci',tipologia:'Miele'},
+  {nome:'Merendine',macrogruppo:'Dolci',tipologia:'Merendine'},
+  {nome:'Zucchero',macrogruppo:'Dolci',tipologia:'Biscotti'},
+  {nome:'Farina 00',macrogruppo:'Dolci',tipologia:'Biscotti'},
+  // Bevande
+  {nome:'Acqua naturale',macrogruppo:'Bevande',tipologia:'Acqua'},
+  {nome:'Acqua frizzante',macrogruppo:'Bevande',tipologia:'Acqua'},
+  {nome:'Succo di frutta',macrogruppo:'Bevande',tipologia:'Succhi'},
+  {nome:'Coca-Cola',macrogruppo:'Bevande',tipologia:'Bibite'},
+  {nome:'Birra',macrogruppo:'Bevande',tipologia:'Birra'},
+  {nome:'Vino rosso',macrogruppo:'Bevande',tipologia:'Vino'},
+  {nome:'Vino bianco',macrogruppo:'Bevande',tipologia:'Vino'},
+  {nome:'Caffè in grani',macrogruppo:'Bevande',tipologia:'Caffè'},
+  {nome:'Caffè macinato',macrogruppo:'Bevande',tipologia:'Caffè'},
+  {nome:'Caffè in cialde',macrogruppo:'Bevande',tipologia:'Caffè'},
+  {nome:'Tè in bustine',macrogruppo:'Bevande',tipologia:'Tè'},
+  // Surgelati
+  {nome:'Piselli surgelati',macrogruppo:'Surgelati',tipologia:'Verdure surgelate'},
+  {nome:'Spinaci surgelati',macrogruppo:'Surgelati',tipologia:'Verdure surgelate'},
+  {nome:'Misto verdure surgelato',macrogruppo:'Surgelati',tipologia:'Verdure surgelate'},
+  {nome:'Pizza surgelata',macrogruppo:'Surgelati',tipologia:'Pizza surgelata'},
+  {nome:'Gelato',macrogruppo:'Surgelati',tipologia:'Gelati'},
+  {nome:'Bastoncini di pesce',macrogruppo:'Surgelati',tipologia:'Piatti pronti'},
+  // Pulizia
+  {nome:'Detersivo piatti',macrogruppo:'Pulizia',tipologia:'Detersivo piatti'},
+  {nome:'Detersivo lavatrice',macrogruppo:'Pulizia',tipologia:'Detersivo lavatrice'},
+  {nome:'Ammorbidente',macrogruppo:'Pulizia',tipologia:'Detersivo lavatrice'},
+  {nome:'Multiuso spray',macrogruppo:'Pulizia',tipologia:'Multiuso'},
+  {nome:'Detersivo bagno',macrogruppo:'Pulizia',tipologia:'Bagno'},
+  {nome:'Sacchetti spazzatura',macrogruppo:'Pulizia',tipologia:'Multiuso'},
+  {nome:'Carta da cucina',macrogruppo:'Pulizia',tipologia:'Multiuso'},
+  // Igiene
+  {nome:'Shampoo',macrogruppo:'Igiene',tipologia:'Shampoo'},
+  {nome:'Balsamo',macrogruppo:'Igiene',tipologia:'Shampoo'},
+  {nome:'Sapone liquido',macrogruppo:'Igiene',tipologia:'Sapone'},
+  {nome:'Dentifricio',macrogruppo:'Igiene',tipologia:'Dentifricio'},
+  {nome:'Carta igienica',macrogruppo:'Igiene',tipologia:'Carta igienica'},
+  {nome:'Dopobarba',macrogruppo:'Igiene',tipologia:'Sapone'},
+  {nome:'Crema idratante',macrogruppo:'Igiene',tipologia:'Sapone'},
+];
+
+// ── SUGGERIMENTI ──────────────────────────────────────
+function getSuggerimenti(testo, escludiInSpesa=false){
+  if(!testo||testo.length<2)return[];
+  const q=testo.toLowerCase().trim();
+  const risultati=[];
+  const visti=new Set();
+
+  // 1. Prima i prodotti già in credenza (escludi quelli in spesa se richiesto)
+  const inCred=prodotti.filter(p=>!p.inSpesa);
+  inCred.forEach(p=>{
+    if(p.nome.toLowerCase().includes(q)&&!visti.has(p.nome.toLowerCase())){
+      risultati.push({nome:p.nome,macrogruppo:p.macrogruppo,tipologia:p.tipologia,mine:true});
+      visti.add(p.nome.toLowerCase());
+    }
+  });
+
+  // 2. Poi il catalogo predefinito
+  CATALOGO.forEach(c=>{
+    if(c.nome.toLowerCase().includes(q)&&!visti.has(c.nome.toLowerCase())){
+      risultati.push({...c,mine:false});
+      visti.add(c.nome.toLowerCase());
+    }
+  });
+
+  return risultati.slice(0,6);
+}
+
+function renderSuggerimenti(inputId, boxId, onSelect){
+  const input=document.getElementById(inputId);
+  const box=document.getElementById(boxId);
+  if(!input||!box)return;
+  const sugg=getSuggerimenti(input.value);
+  if(sugg.length===0){box.innerHTML='';return;}
+  box.innerHTML=sugg.map((s,i)=>`
+    <button type="button" class="suggest-chip ${s.mine?'mine':''}" onclick="(${onSelect.toString()})(${i})">
+      ${getMacroEmoji(s.macrogruppo)} ${esc(s.nome)}
+      <span class="suggest-meta">${s.tipologia?esc(s.tipologia):''}</span>
+    </button>`).join('');
+  // salva i dati nel box per il click
+  box._sugg=sugg;
+}
+
+async function loadAll(){
+  setSyncing(true);
+  const{data,error}=await sb.from('prodotti').select('*').order('nome');
+  setSyncing(false);
+  if(error){showToast('❌ '+error.message);return;}
+  prodotti=data||[];
+  render();
+}
+async function dbInsert(p){
+  setSyncing(true);
+  const{data,error}=await sb.from('prodotti').insert([toDb(p)]).select().single();
+  setSyncing(false);
+  if(error){showToast('❌ Errore salvataggio');return null;}
+  return data;
+}
+async function dbUpdate(p){
+  setSyncing(true);
+  const{error}=await sb.from('prodotti').update(toDb(p)).eq('id',p.id);
+  setSyncing(false);
+  if(error)showToast('❌ Errore aggiornamento');
+}
+async function dbDelete(id){
+  setSyncing(true);
+  const{error}=await sb.from('prodotti').delete().eq('id',id);
+  setSyncing(false);
+  if(error)showToast('❌ Errore eliminazione');
+}
+async function salvaStorico(nome,prezzo,quantita,negozio,macrogruppo,tipologia){
+  if(!prezzo||prezzo<=0)return;
+  await sb.from('storico_prezzi').insert([{nome,prezzo,quantita:quantita||1,negozio:negozio||'',macrogruppo:macrogruppo||'',tipologia:tipologia||''}]);
+}
+async function loadStorico(){
+  const{data}=await sb.from('storico_prezzi').select('*').order('data',{ascending:true});
+  storicoCache=data||[];
+}
+function toDb(p){const d={...p};delete d.id;return d;}
+
+// ── POLLING ───────────────────────────────────────────
+function startPolling(){
+  stopPolling();
+  pollTimer=setInterval(async()=>{
+    if(!currentUser)return;
+    const{data}=await sb.from('prodotti').select('*').order('nome');
+    if(!data)return;
+    const hash=JSON.stringify(data);
+    if(hash!==lastHash){lastHash=hash;prodotti=data;render();}
+  },5000);
+}
+function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null;}}
+
+// ── UTILS ─────────────────────────────────────────────
+function show(id,visible){const el=document.getElementById(id);if(visible){el.classList.remove('hidden');if(el.style.flexDirection)el.style.display='flex';}else el.classList.add('hidden');}
+function showMsg(el,msg){el.textContent=msg;el.style.display='block';}
+function hideMsg(id){const el=document.getElementById(id);if(el)el.style.display='none';}
+function setSyncing(on){const d=document.getElementById('syncDot');if(d)d.className='sync-dot'+(on?' syncing':'');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+function parseData(s){if(!s)return null;const p=s.split('/');if(p.length!==3)return null;try{let y=parseInt(p[2]);if(y<100)y+=2000;return new Date(y,parseInt(p[1])-1,parseInt(p[0]));}catch{return null;}}
+function giorniAllaScadenza(s){const d=parseData(s);if(!d)return null;return Math.ceil((d-new Date())/864e5);}
+function chipScadenza(s){const n=giorniAllaScadenza(s);if(n===null)return '';if(n<0)return `<span class="chip sc-exp">⚠ Scaduto</span>`;if(n===0)return `<span class="chip sc-danger">⚠ Scade oggi</span>`;if(n<=7)return `<span class="chip sc-warn">📅 ${n}g</span>`;if(n<=30)return `<span class="chip sc-warn">📅 ${s}</span>`;return `<span class="chip sc-ok">📅 ${s}</span>`;}
+function fmtScad(v){const d=v.replace(/\D/g,'');if(d.length<=2)return d;if(d.length<=4)return d.slice(0,2)+'/'+d.slice(2);return d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4,8);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function getCredenza(){return sorted(prodotti.filter(p=>!p.inSpesa));}
+function getSpesa(){return prodotti.filter(p=>p.inSpesa).sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));}
+function sorted(l){
+  const list=[...l];
+  if(sortMode==='nome')list.sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));
+  else if(sortMode==='quantita')list.sort((a,b)=>b.quantita-a.quantita);
+  else if(sortMode==='categoria')list.sort((a,b)=>{
+    const ma=(a.macrogruppo||'').localeCompare(b.macrogruppo||'','it',{sensitivity:'base'});
+    if(ma!==0)return ma;
+    return (a.tipologia||'').localeCompare(b.tipologia||'','it',{sensitivity:'base'});
+  });
+  else list.sort((a,b)=>{const da=parseData(a.scadenza),db=parseData(b.scadenza);if(!da)return 1;if(!db)return -1;return da-db;});
+  return list;
+}
+function prodottiEsauriti(){return prodotti.filter(p=>!p.inSpesa&&p.quantita===0);}
+
+// ── RENDER ────────────────────────────────────────────
+function render(){
+  const c=getCredenza(),s=getSpesa();
+  document.getElementById('badge-credenza').textContent=c.length;
+  document.getElementById('badge-spesa').textContent=s.length;
+  // badge rosso se ci sono esauriti
+  const esauriti=prodottiEsauriti();
+  const badgeC=document.getElementById('badge-credenza');
+  badgeC.className='badge'+(esauriti.length>0?' red':'');
+
+  const content=document.getElementById('mainContent');
+  const addBar=document.getElementById('addBar');
+  const ha=document.getElementById('headerActions');
+  const catF=document.getElementById('catFilter');
+
+  if(currentTab===0){
+    addBar.classList.add('hidden');ha.style.display='flex';
+    catF.classList.remove('hidden');renderMacroFilter();
+    renderCredenza(c,content);
+  }else if(currentTab===1){
+    addBar.classList.remove('hidden');ha.style.display='none';
+    catF.classList.add('hidden');
+    renderSpesa(s,content);
+  }else{
+    addBar.classList.add('hidden');ha.style.display='flex';
+    catF.classList.add('hidden');
+    renderStats(content);
+  }
+}
+
+function renderMacroFilter(){
+  const el=document.getElementById('catFilter');if(!el)return;
+  const macros=['tutti',...new Set(prodotti.filter(p=>!p.inSpesa&&p.macrogruppo).map(p=>p.macrogruppo))];
+  el.innerHTML=macros.map(m=>`<button class="cat-pill ${macroFilter===m?'active':''}" onclick="setMacroFilter('${esc(m)}')">${m==='tutti'?'Tutti':esc(m)}</button>`).join('');
+}
+function setMacroFilter(m){macroFilter=m;render();}
+
+function renderCredenza(lista,el){
+  const filtered=macroFilter==='tutti'?lista:lista.filter(p=>p.macrogruppo===macroFilter);
+  const pross=filtered.filter(p=>{const n=giorniAllaScadenza(p.scadenza);return n!==null&&n>=0&&n<=7;});
+  const esauriti=filtered.filter(p=>p.quantita===0);
+  let html='';
+  if(pross.length>0)html+=`<div class="alert-banner">⚠️ <span>In scadenza entro 7 giorni: <strong>${pross.map(p=>p.nome).join(', ')}</strong></span></div>`;
+  if(esauriti.length>0)html+=`<div class="alert-banner" style="background:var(--red-pale);border-color:var(--red);color:var(--red)">📦 <span>Esauriti: <strong>${esauriti.map(p=>p.nome).join(', ')}</strong></span></div>`;
+  if(filtered.length===0)html+=`<div class="empty-state"><span class="emoji">📦</span><p>Nessun prodotto${macroFilter!=='tutti'?' in questa categoria':''}.</p></div>`;
+  else filtered.forEach(p=>{html+=renderCard(p);});
+  el.innerHTML=html;
+}
+
+function renderCard(p){
+  const sc=p.scadenza?chipScadenza(p.scadenza):'';
+  const pr=p.prezzo>0?`<span class="chip">€${p.prezzo.toFixed(2)}</span>`:'';
+  const pe=p.peso?`<span class="chip">${esc(p.peso)}</span>`:'';
+  const ng=p.negozio?`<span class="chip">🏪 ${esc(p.negozio)}</span>`:'';
+  const of=p.inOfferta?`<span class="chip offerta">🏷️ Offerta</span>`:'';
+  const macro=p.macrogruppo?`<span class="chip cat">📂 ${esc(p.macrogruppo)}</span>`:'';
+  const tipo=p.tipologia?`<span class="chip" style="background:#e0f2fe;color:#0369a1">🏷 ${esc(p.tipologia)}</span>`:'';
+  const esaurito=p.quantita===0;
+  return `<div class="product-card${esaurito?' esaurito':''}">
+    <div class="card-header" onclick="toggleCard(this)">
+      <div class="card-icon">${getMacroEmoji(p.macrogruppo)}</div>
+      <div class="card-main"><div class="card-name">${esc(p.nome)}</div><div class="card-meta">${macro}${tipo}${sc}${pr}${pe}${ng}${of}</div></div>
+      <div class="qty-badge${esaurito?' zero':''}">×${p.quantita}</div><span class="chevron">▶</span>
+    </div>
+    <div class="card-detail">
+      <div class="field-row">
+        <div class="field"><label>Macrogruppo</label>
+          <select onchange="onCardMacroChange(${p.id},this.value)">
+            <option value="">— Nessuno —</option>
+            ${getMacrogruppi().map(m=>`<option value="${esc(m)}" ${p.macrogruppo===m?'selected':''}>${esc(m)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Tipologia</label>
+          <select id="tipo-card-${p.id}" onchange="fieldChange(${p.id},'tipologia',this.value)" ${!p.macrogruppo?'disabled':''}>
+            <option value="">— Tipologia —</option>
+            ${getTipologie(p.macrogruppo).map(t=>`<option value="${esc(t)}" ${p.tipologia===t?'selected':''}>${esc(t)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" inputmode="numeric" placeholder="gg/mm/aaaa" oninput="onScadInput(${p.id},this)"></div>
+        <div class="field"><label>Prezzo €</label><input type="number" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" min="0" step="0.01" placeholder="0.00" onchange="fieldChange(${p.id},'prezzo',parseFloat(this.value)||0)"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Peso</label><input value="${esc(p.peso)}" placeholder="500g" onchange="fieldChange(${p.id},'peso',this.value)"></div>
+        <div class="field"><label>Negozio</label><input value="${esc(p.negozio)}" placeholder="Coop…" onchange="fieldChange(${p.id},'negozio',this.value)"></div>
+      </div>
+      <div class="field"><label>Soglia minima</label><input type="number" min="0" value="${p.soglia_minima||0}" style="max-width:100px" onchange="fieldChange(${p.id},'soglia_minima',parseInt(this.value)||0)"></div>
+      <div class="qty-row">
+        <button class="qty-btn minus" ${p.quantita<=0?'disabled':''} onclick="changeQty(${p.id},-1)">−</button>
+        <span class="qty-num">${p.quantita}</span>
+        <button class="qty-btn plus" onclick="changeQty(${p.id},1)">＋</button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">🏷️ In offerta</span>
+        <label class="toggle"><input type="checkbox" ${p.inOfferta?'checked':''} onchange="fieldChange(${p.id},'inOfferta',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="action-row">
+        <button class="btn-outline" onclick="mandaInSpesa(${p.id})">🛒 Aggiungi alla spesa</button>
+        <button class="btn-delete" onclick="eliminaProdotto(${p.id})">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function onCardMacroChange(id,macro){
+  const p=prodotti.find(x=>x.id===id);if(!p)return;
+  p.macrogruppo=macro;p.tipologia='';
+  render();
+  dbUpdate(p);
+}
+
+function getMacroEmoji(macro){
+  const map={'Latticini':'🥛','Carne':'🥩','Pesce':'🐟','Pasta e Riso':'🍝','Pane e Forno':'🍞','Verdura':'🥦','Frutta':'🍎','Legumi':'🫘','Uova':'🥚','Conserve':'🥫','Dolci':'🍫','Bevande':'🥤','Surgelati':'🧊','Condimenti':'🫙','Pulizia':'🧹','Igiene':'🧴'};
+  return map[macro]||'🛒';
+}
+
+function renderSpesa(lista,el){
+  let html='';
+  if(lista.length>0)html+=`<button class="spesa-start-btn" onclick="apriNegozioDialog()">🛍️ Avvia modalità spesa al negozio</button>`;
+  if(lista.length===0)html+=`<div class="empty-state"><span class="emoji">🛒</span><p>La lista della spesa è vuota.</p></div>`;
+  else lista.forEach(p=>{
+    const macro=p.macrogruppo?`<span class="chip cat" style="font-size:.72rem">📂 ${esc(p.macrogruppo)}</span>`:'';
+    const tipo=p.tipologia?`<span class="chip" style="font-size:.72rem;background:#e0f2fe;color:#0369a1">🏷 ${esc(p.tipologia)}</span>`:'';
+    html+=`<div class="spesa-card"><span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span><div style="flex:1"><div class="spesa-nome">${esc(p.nome)}</div>${(macro||tipo)?'<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">'+macro+tipo+'</div>':''}</div><div class="spesa-qty-ctrl"><button class="spesa-qty-btn minus" ${p.quantita<=1?'disabled':''} onclick="changeSpesaQty(${p.id},-1)">−</button><span class="spesa-qty-num">${p.quantita}</span><button class="spesa-qty-btn plus" onclick="changeSpesaQty(${p.id},1)">＋</button></div><button class="btn-delete" onclick="eliminaProdotto(${p.id})">🗑</button></div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ── STATISTICHE ───────────────────────────────────────
+let statPeriodo='mese'; // 'settimana' | 'mese' | 'tutto'
+let statProdottoSel='';
+let charts={};
+
+async function renderStats(el){
+  el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+  await loadStorico();
+
+  // Arricchisci storico con prezzi manuali dai prodotti in credenza
+  // (solo se non già presenti per quel prodotto in data odierna)
+  const oggiStr=new Date().toISOString().slice(0,10);
+  const giaNelleStorico=new Set(storicoCache.filter(r=>r.data&&r.data.slice(0,10)===oggiStr).map(r=>r.nome.toLowerCase()));
+  const extraManuale=prodotti.filter(p=>!p.inSpesa&&p.prezzo>0&&!giaNelleStorico.has(p.nome.toLowerCase()))
+    .map(p=>({nome:p.nome,prezzo:p.prezzo,quantita:p.quantita||1,negozio:p.negozio||'',macrogruppo:p.macrogruppo||'',tipologia:p.tipologia||'',data:new Date().toISOString(),_manuale:true}));
+  const tuttiDati=[...storicoCache,...extraManuale];
+
+  if(tuttiDati.length===0){
+    el.innerHTML=`<div class="stat-section"><div class="stat-empty">📊 Nessun dato ancora.<br>Completa una spesa al negozio o inserisci i prezzi nei prodotti per iniziare.</div></div>`;
+    return;
+  }
+
+  // Distruggi vecchi grafici
+  Object.values(charts).forEach(c=>{try{c.destroy();}catch{}});
+  charts={};
+
+  el.innerHTML=`
+    <div id="stat-periodo-wrap"></div>
+    <div id="stat-negozi-wrap"></div>
+    <div id="stat-trend-wrap"></div>
+    <div id="stat-prodotto-wrap"></div>`;
+
+  renderStatPeriodo(tuttiDati);
+  renderStatNegozi(tuttiDati);
+  renderStatTrend(tuttiDati);
+  renderStatProdotto(tuttiDati);
+}
+
+// ── 1. SPESA PER PERIODO ──────────────────────────────
+function renderStatPeriodo(dati){
+  const el=document.getElementById('stat-periodo-wrap');if(!el)return;
+
+  const ora=new Date();
+  function inPeriodo(r,p){
+    const d=new Date(r.data);
+    if(p==='settimana'){const s=new Date(ora);s.setDate(ora.getDate()-7);return d>=s;}
+    if(p==='mese'){return d.getFullYear()===ora.getFullYear()&&d.getMonth()===ora.getMonth();}
+    return true;
+  }
+
+  const filtrati=dati.filter(r=>inPeriodo(r,statPeriodo));
+  const totale=filtrati.reduce((s,r)=>s+r.prezzo*(r.quantita||1),0);
+  const numAcquisti=filtrati.filter(r=>!r._manuale).length;
+
+  // spesa per macrogruppo nel periodo
+  const perMacro={};
+  filtrati.forEach(r=>{
+    const m=r.macrogruppo||'Altro';
+    perMacro[m]=(perMacro[m]||0)+r.prezzo*(r.quantita||1);
+  });
+  const macroEntries=Object.entries(perMacro).sort((a,b)=>b[1]-a[1]);
+
+  // spesa per mese (ultimi 6) per il grafico
+  const perMese={};
+  dati.filter(r=>!r._manuale).forEach(r=>{
+    const d=new Date(r.data);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    perMese[k]=(perMese[k]||0)+r.prezzo*(r.quantita||1);
+  });
+  const mesiKeys=Object.keys(perMese).sort().slice(-6);
+  const mesiLabels=mesiKeys.map(k=>{const[y,m]=k.split('-');return `${['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'][parseInt(m)-1]} ${y.slice(2)}`});
+  const mesiValori=mesiKeys.map(k=>perMese[k]);
+
+  el.innerHTML=`
+    <div class="stat-section">
+      <h3>📅 Spesa per periodo</h3>
+      <div class="stat-tabs">
+        <button class="stat-tab ${statPeriodo==='settimana'?'active':''}" onclick="setStatPeriodo('settimana')">Questa settimana</button>
+        <button class="stat-tab ${statPeriodo==='mese'?'active':''}" onclick="setStatPeriodo('mese')">Questo mese</button>
+        <button class="stat-tab ${statPeriodo==='tutto'?'active':''}" onclick="setStatPeriodo('tutto')">Tutto</button>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-val">€${totale.toFixed(2)}</div><div class="kpi-label">Totale ${statPeriodo==='settimana'?'settimana':statPeriodo==='mese'?'mese corrente':'storico'}</div></div>
+        <div class="kpi amber"><div class="kpi-val">${numAcquisti}</div><div class="kpi-label">Acquisti registrati</div></div>
+      </div>
+      ${macroEntries.length>0?`
+      <div style="font-size:.8rem;font-weight:700;color:var(--text-mid);margin-bottom:8px">Per categoria</div>
+      ${macroEntries.map(([m,v])=>{
+        const pct=totale>0?Math.round(v/totale*100):0;
+        return `<div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:3px">
+            <span>${getMacroEmoji(m)} <strong>${esc(m)}</strong></span>
+            <span style="font-weight:700;color:var(--green-dark)">€${v.toFixed(2)} <span style="color:var(--text-mid);font-weight:400">(${pct}%)</span></span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--green);border-radius:3px;transition:width .3s"></div>
+          </div>
+        </div>`;
+      }).join('')}`:''}
+      ${mesiKeys.length>1?`<div style="margin-top:14px;font-size:.8rem;font-weight:700;color:var(--text-mid);margin-bottom:8px">Andamento mensile</div><div class="chart-container"><canvas id="chartMesi"></canvas></div>`:''}
+    </div>`;
+
+  if(mesiKeys.length>1){
+    setTimeout(()=>{
+      const c=document.getElementById('chartMesi');if(!c)return;
+      if(charts.mesi)charts.mesi.destroy();
+      charts.mesi=new Chart(c,{type:'bar',data:{labels:mesiLabels,datasets:[{label:'€',data:mesiValori,backgroundColor:'rgba(52,211,153,.5)',borderColor:'rgba(52,211,153,.8)',borderWidth:1,borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'€'+ctx.parsed.y.toFixed(2)},backgroundColor:'#1c2330',titleColor:'#e6edf3',bodyColor:'#34d399',borderColor:'rgba(52,211,153,.2)',borderWidth:1}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'€'+v.toFixed(0),color:'rgba(230,237,243,.35)'},grid:{color:'rgba(255,255,255,.05)'}},x:{ticks:{color:'rgba(230,237,243,.35)'},grid:{display:false}}}}});
+    },50);
+  }
+}
+
+function setStatPeriodo(p){
+  statPeriodo=p;
+  loadStorico().then(()=>{
+    const ora=new Date();
+    function inPeriodo(r){
+      const d=new Date(r.data);
+      if(p==='settimana'){const s=new Date(ora);s.setDate(ora.getDate()-7);return d>=s;}
+      if(p==='mese'){return d.getFullYear()===ora.getFullYear()&&d.getMonth()===ora.getMonth();}
+      return true;
+    }
+    const oggiStr=ora.toISOString().slice(0,10);
+    const giaNello=new Set(storicoCache.filter(r=>r.data&&r.data.slice(0,10)===oggiStr).map(r=>r.nome.toLowerCase()));
+    const extra=prodotti.filter(pr=>!pr.inSpesa&&pr.prezzo>0&&!giaNello.has(pr.nome.toLowerCase())).map(pr=>({nome:pr.nome,prezzo:pr.prezzo,quantita:pr.quantita||1,negozio:pr.negozio||'',macrogruppo:pr.macrogruppo||'',data:new Date().toISOString(),_manuale:true}));
+    renderStatPeriodo([...storicoCache,...extra]);
+  });
+}
+
+// ── 2. NEGOZIO PIÙ CONVENIENTE ────────────────────────
+function renderStatNegozi(dati){
+  const el=document.getElementById('stat-negozi-wrap');if(!el)return;
+  const negMap={};
+  dati.filter(r=>r.negozio&&!r._manuale).forEach(r=>{
+    if(!negMap[r.negozio])negMap[r.negozio]={totale:0,acquisti:0,prodotti:new Set()};
+    negMap[r.negozio].totale+=r.prezzo*(r.quantita||1);
+    negMap[r.negozio].acquisti++;
+    negMap[r.negozio].prodotti.add(r.nome);
+  });
+  const negozi=Object.entries(negMap).sort((a,b)=>b[1].totale-a[1].totale);
+
+  // per prodotto, trova dove costa meno
+  const bestPerProd={};
+  dati.filter(r=>r.negozio&&!r._manuale).forEach(r=>{
+    const k=r.nome.toLowerCase();
+    if(!bestPerProd[k]||r.prezzo<bestPerProd[k].prezzo) bestPerProd[k]={negozio:r.negozio,prezzo:r.prezzo,nome:r.nome};
+  });
+  const bestNegozioCount={};
+  Object.values(bestPerProd).forEach(v=>{bestNegozioCount[v.negozio]=(bestNegozioCount[v.negozio]||0)+1;});
+  const topConveniente=Object.entries(bestNegozioCount).sort((a,b)=>b[1]-a[1])[0];
+
+  el.innerHTML=`
+    <div class="stat-section">
+      <h3>🏪 Negozi</h3>
+      ${topConveniente?`<div style="background:var(--green-pale);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:.88rem;font-weight:600;color:var(--green-dark)">🏆 Negozio più conveniente: <strong>${esc(topConveniente[0])}</strong> — prezzi migliori su ${topConveniente[1]} prodott${topConveniente[1]===1?'o':'i'}</div>`:''}
+      ${negozi.length===0?`<div class="stat-empty">Nessun dato negozio ancora.</div>`:
+        negozi.map(([n,v])=>`
+          <div class="negozio-row">
+            <div class="negozio-name">🏪 ${esc(n)}</div>
+            <div class="negozio-info">
+              <strong>€${v.totale.toFixed(2)}</strong>
+              ${v.acquisti} acquist${v.acquisti===1?'o':'i'} · ${v.prodotti.size} prodott${v.prodotti.size===1?'o':'i'}
+            </div>
+          </div>`).join('')}
+    </div>`;
+}
+
+// ── 3. TREND PREZZI ───────────────────────────────────
+function renderStatTrend(dati){
+  const el=document.getElementById('stat-trend-wrap');if(!el)return;
+
+  // Per ogni prodotto con almeno 2 rilevazioni, calcola variazione %
+  const perProd={};
+  dati.filter(r=>!r._manuale).forEach(r=>{
+    if(!perProd[r.nome])perProd[r.nome]=[];
+    perProd[r.nome].push({prezzo:r.prezzo,data:new Date(r.data)});
+  });
+
+  const trend=[];
+  Object.entries(perProd).forEach(([nome,righe])=>{
+    if(righe.length<2)return;
+    righe.sort((a,b)=>a.data-b.data);
+    const primo=righe[0].prezzo;
+    const ultimo=righe[righe.length-1].prezzo;
+    const delta=((ultimo-primo)/primo*100);
+    trend.push({nome,primo,ultimo,delta,n:righe.length});
+  });
+
+  trend.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  const top=trend.slice(0,8);
+
+  el.innerHTML=`
+    <div class="stat-section">
+      <h3>📈 Andamento prezzi</h3>
+      ${top.length===0?`<div class="stat-empty">Servono almeno 2 acquisti dello stesso prodotto per vedere il trend.</div>`:`
+      <div style="font-size:.78rem;color:var(--text-mid);margin-bottom:10px">Variazione dal primo all'ultimo acquisto registrato</div>
+      ${top.map(t=>{
+        const su=t.delta>2,giu=t.delta<-2;
+        const cls=su?'trend-up':giu?'trend-down':'trend-flat';
+        const ico=su?'▲':giu?'▼':'→';
+        return `<div class="trend-row">
+          <div class="trend-name">${getMacroEmoji('')} ${esc(t.nome)}</div>
+          <div style="text-align:right">
+            <span class="trend-badge ${cls}">${ico} ${Math.abs(t.delta).toFixed(1)}%</span>
+            <div style="font-size:.75rem;color:var(--text-mid);margin-top:2px">€${t.primo.toFixed(2)} → €${t.ultimo.toFixed(2)}</div>
+          </div>
+        </div>`;
+      }).join('')}`}
+    </div>`;
+}
+
+// ── 4. STORICO PRODOTTO SINGOLO ───────────────────────
+function renderStatProdotto(dati){
+  const el=document.getElementById('stat-prodotto-wrap');if(!el)return;
+  const nomi=[...new Set(dati.filter(r=>!r._manuale).map(r=>r.nome))].sort();
+  if(nomi.length===0){el.innerHTML='';return;}
+  if(!statProdottoSel||!nomi.includes(statProdottoSel))statProdottoSel=nomi[0];
+
+  el.innerHTML=`
+    <div class="stat-section">
+      <h3>🔍 Dettaglio prodotto</h3>
+      <select class="prodotto-select" id="statProdottoSelect" onchange="onStatProdChange(this.value)">
+        ${nomi.map(n=>`<option value="${esc(n)}" ${n===statProdottoSel?'selected':''}>${esc(n)}</option>`).join('')}
+      </select>
+      <div class="chart-container"><canvas id="priceChart"></canvas></div>
+      <div id="statProdDettaglio" style="margin-top:10px"></div>
+    </div>`;
+
+  setTimeout(()=>aggiornaGraficoProdotto(dati),50);
+}
+
+function onStatProdChange(nome){
+  statProdottoSel=nome;
+  loadStorico().then(()=>{
+    const oggiStr=new Date().toISOString().slice(0,10);
+    const giaNello=new Set(storicoCache.filter(r=>r.data&&r.data.slice(0,10)===oggiStr).map(r=>r.nome.toLowerCase()));
+    const extra=prodotti.filter(p=>!p.inSpesa&&p.prezzo>0&&!giaNello.has(p.nome.toLowerCase())).map(p=>({nome:p.nome,prezzo:p.prezzo,quantita:p.quantita||1,negozio:p.negozio||'',macrogruppo:p.macrogruppo||'',data:new Date().toISOString(),_manuale:true}));
+    aggiornaGraficoProdotto([...storicoCache,...extra]);
+  });
+}
+
+function aggiornaGraficoProdotto(dati){
+  const righe=dati.filter(r=>!r._manuale&&r.nome===statProdottoSel).sort((a,b)=>new Date(a.data)-new Date(b.data));
+  const canvas=document.getElementById('priceChart');if(!canvas)return;
+  if(charts.prodotto)charts.prodotto.destroy();
+
+  if(righe.length===0){canvas.parentElement.innerHTML='<div class="stat-empty">Nessun acquisto registrato per questo prodotto.</div>';return;}
+
+  const labels=righe.map(r=>{const d=new Date(r.data);return `${d.getDate()}/${d.getMonth()+1}/${String(d.getFullYear()).slice(2)}`;});
+  const prezzi=righe.map(r=>r.prezzo);
+  const negozi=righe.map(r=>r.negozio||'?');
+
+  charts.prodotto=new Chart(canvas,{
+    type:'line',
+    data:{labels,datasets:[{label:'Prezzo €',data:prezzi,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.08)',borderWidth:2,pointBackgroundColor:'#34d399',pointRadius:5,tension:.3,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`€${ctx.parsed.y.toFixed(2)} — ${negozi[ctx.dataIndex]}`},backgroundColor:'#1c2330',titleColor:'#e6edf3',bodyColor:'#34d399',borderColor:'rgba(52,211,153,.2)',borderWidth:1}},scales:{y:{beginAtZero:false,ticks:{callback:v=>'€'+v.toFixed(2),color:'rgba(230,237,243,.35)'},grid:{color:'rgba(255,255,255,.05)'}},x:{ticks:{maxRotation:45,color:'rgba(230,237,243,.35)'},grid:{display:false}}}}
+  });
+
+  // dettaglio sotto grafico
+  const min=Math.min(...prezzi),max=Math.max(...prezzi),med=prezzi.reduce((a,b)=>a+b,0)/prezzi.length;
+  const det=document.getElementById('statProdDettaglio');
+  if(det)det.innerHTML=`
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-val">€${min.toFixed(2)}</div><div class="kpi-label">Minimo</div></div>
+      <div class="kpi amber"><div class="kpi-val">€${med.toFixed(2)}</div><div class="kpi-label">Media</div></div>
+      <div class="kpi red"><div class="kpi-val">€${max.toFixed(2)}</div><div class="kpi-label">Massimo</div></div>
+    </div>`;
+}
+
+// Alias per compatibilità
+function aggiornaGrafico(){
+  loadStorico().then(()=>aggiornaGraficoProdotto(storicoCache));
+}
+
+// ── INTERACTIONS ──────────────────────────────────────
+function switchTab(t){
+  currentTab=t;
+  [0,1,2].forEach(i=>document.getElementById('tab'+i).className='tab'+(t===i?' active':''));
+  render();
+}
+
+function toggleCard(header){
+  const detail=header.nextElementSibling,chev=header.querySelector('.chevron'),isOpen=detail.classList.contains('open');
+  document.querySelectorAll('.card-detail.open').forEach(el=>el.classList.remove('open'));
+  document.querySelectorAll('.chevron.open').forEach(el=>el.classList.remove('open'));
+  if(!isOpen){detail.classList.add('open');chev.classList.add('open');}
+}
+
+async function changeQty(id,delta){
+  const p=prodotti.find(x=>x.id===id);if(!p)return;
+  const nuova=Math.max(0,p.quantita+delta);
+  p.quantita=nuova;
+  render();
+  await dbUpdate(p);
+  // Controlla soglia
+  if(nuova===0){
+    const soglia=p.soglia_minima||0;
+    mostraPopupEsaurito(p);
+  }
+}
+
+function mostraPopupEsaurito(p){
+  esauritoPendente=p;
+  document.getElementById('esauritoMsg').textContent=`"${p.nome}" è esaurito. Vuoi aggiungerlo alla lista della spesa?`;
+  document.getElementById('esauritoModal').classList.add('open');
+}
+function chiudiEsaurito(){document.getElementById('esauritoModal').classList.remove('open');esauritoPendente=null;}
+async function aggiungiEsauritoASpesa(){
+  if(!esauritoPendente)return;
+  await mandaInSpesa(esauritoPendente.id);
+  chiudiEsaurito();
+}
+
+async function fieldChange(id,field,value){
+  const p=prodotti.find(x=>x.id===id);if(!p)return;
+  p[field]=value;
+  render();
+  await dbUpdate(p);
+  // Se cambia il prezzo manualmente, salva nello storico
+  if(field==='prezzo'&&value>0&&!p.inSpesa){
+    await salvaStorico(p.nome,value,p.quantita,p.negozio,p.macrogruppo,p.tipologia);
+  }
+}
+function onScadInput(id,input){const fmt=fmtScad(input.value);if(fmt!==input.value)input.value=fmt;const p=prodotti.find(x=>x.id===id);if(!p)return;p.scadenza=fmt;clearTimeout(input._t);input._t=setTimeout(()=>dbUpdate(p),800);}
+
+async function mandaInSpesa(id){
+  const p=prodotti.find(x=>x.id===id);if(!p)return;
+  if(!prodotti.find(x=>x.inSpesa&&x.nome.toLowerCase()===p.nome.toLowerCase())){
+    const ins=await dbInsert({nome:p.nome,quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo:p.macrogruppo||'',tipologia:p.tipologia||'',soglia_minima:0});
+    if(ins)prodotti.push(ins);
+  }
+  currentTab=1;render();showToast(`${p.nome} aggiunto alla spesa`);
+}
+async function eliminaProdotto(id){prodotti=prodotti.filter(x=>x.id!==id);render();await dbDelete(id);}
+async function changeSpesaQty(id,delta){const p=prodotti.find(x=>x.id===id);if(!p)return;p.quantita=Math.max(1,p.quantita+delta);render();await dbUpdate(p);}
+
+async function quickAdd(){
+  const input=document.getElementById('quickAddInput');
+  const nome=input.value.trim();if(!nome)return;
+  const macrogruppo=input._macro||'';
+  const tipologia=input._tipo||'';
+  if(!prodotti.find(x=>x.inSpesa&&x.nome.toLowerCase()===nome.toLowerCase())){
+    const ins=await dbInsert({nome,quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0});
+    if(ins){prodotti.push(ins);render();}
+  }
+  input.value='';input._macro='';input._tipo='';
+  closeQuickDropdown();
+}
+
+// ── ADD MODAL ─────────────────────────────────────────
+function openAddModal(id){
+  editingId=id||null;modalQty=1;
+  popolaMacro('f-macrogruppo');
+  popolaTipo('f-tipologia','');
+  if(id){
+    const p=prodotti.find(x=>x.id===id);if(!p)return;
+    document.getElementById('modalTitle').textContent='✏️ Modifica';
+    document.getElementById('f-nome').value=p.nome;
+    document.getElementById('f-scadenza').value=p.scadenza;
+    document.getElementById('f-prezzo').value=p.prezzo>0?p.prezzo.toFixed(2):'';
+    document.getElementById('f-peso').value=p.peso;
+    document.getElementById('f-negozio').value=p.negozio;
+    document.getElementById('f-offerta').checked=p.inOfferta;
+    document.getElementById('f-soglia').value=p.soglia_minima||0;
+    modalQty=p.quantita;
+    popolaMacro('f-macrogruppo', p.macrogruppo||'');
+    popolaTipo('f-tipologia', p.macrogruppo||'', p.tipologia||'');
+  }else{
+    document.getElementById('modalTitle').textContent='➕ Nuovo Prodotto';
+    ['f-nome','f-scadenza','f-peso','f-negozio'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('f-prezzo').value='';
+    document.getElementById('f-offerta').checked=false;
+    document.getElementById('f-soglia').value=0;
+  }
+  document.getElementById('modal-qty').textContent=modalQty;
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-nome').focus(),100);
+}
+function onModalMacroChange(){
+  const macro=document.getElementById('f-macrogruppo').value;
+  popolaTipo('f-tipologia',macro,'');
+}
+function closeModal(){document.getElementById('addModal').classList.remove('open');document.getElementById('modal-suggest-box').innerHTML='';}
+function changeModalQty(d){modalQty=Math.max(1,modalQty+d);document.getElementById('modal-qty').textContent=modalQty;}
+async function saveModal(){
+  const nome=document.getElementById('f-nome').value.trim();if(!nome){document.getElementById('f-nome').focus();return;}
+  const scadenza=fmtScad(document.getElementById('f-scadenza').value);
+  const prezzo=parseFloat(document.getElementById('f-prezzo').value)||0;
+  const peso=document.getElementById('f-peso').value.trim();
+  const negozio=document.getElementById('f-negozio').value.trim();
+  const inOfferta=document.getElementById('f-offerta').checked;
+  const macrogruppo=document.getElementById('f-macrogruppo').value;
+  const tipologia=document.getElementById('f-tipologia').value;
+  const soglia_minima=parseInt(document.getElementById('f-soglia').value)||0;
+  if(editingId){
+    const p=prodotti.find(x=>x.id===editingId);
+    if(p){Object.assign(p,{nome,scadenza,prezzo,peso,negozio,inOfferta,macrogruppo,tipologia,soglia_minima,quantita:modalQty});await dbUpdate(p);}
+  }else{
+    const ins=await dbInsert({nome,quantita:modalQty,scadenza,prezzo,peso,negozio,inOfferta,inSpesa:false,macrogruppo,tipologia,soglia_minima});
+    if(ins)prodotti.push(ins);
+  }
+  closeModal();render();
+}
+document.getElementById('f-scadenza').addEventListener('input',function(){this.value=fmtScad(this.value);});
+
+function onModalNomeInput(){
+  const box=document.getElementById('modal-suggest-box');
+  const sugg=getSuggerimenti(document.getElementById('f-nome').value);
+  if(sugg.length===0){box.innerHTML='';return;}
+  box._sugg=sugg;
+  box.innerHTML=sugg.map((s,i)=>`
+    <button type="button" class="suggest-chip ${s.mine?'mine':''}" onclick="applicaSuggerimentoModal(${i})">
+      ${getMacroEmoji(s.macrogruppo)} ${esc(s.nome)}<span class="suggest-meta">${s.tipologia?'· '+esc(s.tipologia):''}</span>
+    </button>`).join('');
+}
+function applicaSuggerimentoModal(i){
+  const box=document.getElementById('modal-suggest-box');
+  const s=box._sugg[i];if(!s)return;
+  document.getElementById('f-nome').value=s.nome;
+  popolaMacro('f-macrogruppo',s.macrogruppo);
+  popolaTipo('f-tipologia',s.macrogruppo,s.tipologia);
+  box.innerHTML='';
+  document.getElementById('f-scadenza').focus();
+}
+
+// ── QUICK ADD AUTOCOMPLETE ────────────────────────────
+let acIndex=-1;
+let acSugg=[];
+
+function onQuickInput(){
+  const val=document.getElementById('quickAddInput').value;
+  acIndex=-1;
+  acSugg=getSuggerimenti(val);
+  renderQuickDropdown();
+}
+
+function renderQuickDropdown(){
+  const dd=document.getElementById('quickDropdown');
+  if(!acSugg.length){dd.classList.remove('open');dd.innerHTML='';return;}
+  dd.innerHTML=acSugg.map((s,i)=>`
+    <div class="ac-item${acIndex===i?' selected':''}" onmousedown="selectAcItem(${i})">
+      <span style="font-size:1.1rem;flex-shrink:0">${getMacroEmoji(s.macrogruppo)}</span>
+      <div class="ac-item-left">
+        <div class="ac-item-nome">${esc(s.nome)}</div>
+        <div class="ac-item-meta">${[s.macrogruppo,s.tipologia].filter(Boolean).map(x=>esc(x)).join(' › ')}</div>
+      </div>
+      ${s.mine?'<span class="ac-item-mine">🏠 mio</span>':''}
+    </div>`).join('');
+  dd.classList.add('open');
+}
+
+function onQuickKey(e){
+  if(!acSugg.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();acIndex=Math.min(acIndex+1,acSugg.length-1);renderQuickDropdown();}
+  else if(e.key==='ArrowUp'){e.preventDefault();acIndex=Math.max(acIndex-1,-1);renderQuickDropdown();}
+  else if(e.key==='Enter'){
+    if(acIndex>=0){e.preventDefault();selectAcItem(acIndex);}
+    else{closeQuickDropdown();quickAdd();}
+  }
+  else if(e.key==='Escape'){closeQuickDropdown();}
+}
+
+function selectAcItem(i){
+  const s=acSugg[i];if(!s)return;
+  document.getElementById('quickAddInput').value=s.nome;
+  // Salva macrogruppo e tipologia per quickAdd
+  document.getElementById('quickAddInput')._macro=s.macrogruppo;
+  document.getElementById('quickAddInput')._tipo=s.tipologia;
+  closeQuickDropdown();
+  quickAdd();
+}
+
+function closeQuickDropdown(){
+  acIndex=-1;
+  const dd=document.getElementById('quickDropdown');
+  if(dd){dd.classList.remove('open');dd.innerHTML='';}
+}
+
+document.addEventListener('click',e=>{
+  const wrap=document.querySelector('.autocomplete-wrap');
+  if(wrap&&!wrap.contains(e.target))closeQuickDropdown();
+});
+function toggleSort(){document.getElementById('sortMenu').classList.toggle('open');}
+function setSort(m){sortMode=m;['nome','scadenza','quantita','categoria'].forEach(x=>document.getElementById('sort-'+x).className=x===m?'active':'');document.getElementById('sortMenu').classList.remove('open');render();}
+document.addEventListener('click',e=>{if(!document.getElementById('sortDropdown').contains(e.target))document.getElementById('sortMenu').classList.remove('open');});
+
+// ── NEGOZIO ───────────────────────────────────────────
+function apriNegozioDialog(){document.getElementById('negozioDialog').classList.add('open');setTimeout(()=>document.getElementById('negozioInput').focus(),100);}
+function closeNegozioDialog(){document.getElementById('negozioDialog').classList.remove('open');}
+function startSpesa(){
+  const negozio=document.getElementById('negozioInput').value.trim();
+  closeNegozioDialog();
+  negozioItems=getSpesa().map(p=>({prodotto:{...p},preso:false}));
+  document.getElementById('negozioTitle').textContent='🛍️ Spesa'+(negozio?` – ${negozio}`:'');
+  document.getElementById('negozioScreen').dataset.negozio=negozio;
+  renderNegozio();
+  document.getElementById('negozioScreen').classList.add('open');
+}
+function closeNegozioScreen(){document.getElementById('negozioScreen').classList.remove('open');document.getElementById('negozioInput').value='';toggleNegAdd(false);}
+
+function toggleNegAdd(open){
+  document.getElementById('negAddPanel').style.display=open?'block':'none';
+  document.getElementById('negAddToggleBtn').style.display=open?'none':'flex';
+  if(open){
+    popolaMacro('neg-f-macrogruppo','');
+    popolaTipo('neg-f-tipologia','','');
+    document.getElementById('neg-f-nome').value='';
+    document.getElementById('neg-f-qty').value='1';
+    document.getElementById('neg-f-prezzo').value='';
+    document.getElementById('neg-f-peso').value='';
+    setTimeout(()=>document.getElementById('neg-f-nome').focus(),80);
+  }
+}
+function onNegMacroChange(){
+  const macro=document.getElementById('neg-f-macrogruppo').value;
+  popolaTipo('neg-f-tipologia',macro,'');
+}
+function onNegNomeInput(){
+  const box=document.getElementById('neg-suggest-box');
+  const sugg=getSuggerimenti(document.getElementById('neg-f-nome').value);
+  if(sugg.length===0){box.innerHTML='';return;}
+  box._sugg=sugg;
+  box.innerHTML=sugg.map((s,i)=>`
+    <button type="button" class="suggest-chip ${s.mine?'mine':''}" onclick="applicaSuggerimentoNeg(${i})">
+      ${getMacroEmoji(s.macrogruppo)} ${esc(s.nome)}<span class="suggest-meta">${s.tipologia?'· '+esc(s.tipologia):''}</span>
+    </button>`).join('');
+}
+function applicaSuggerimentoNeg(i){
+  const box=document.getElementById('neg-suggest-box');
+  const s=box._sugg[i];if(!s)return;
+  document.getElementById('neg-f-nome').value=s.nome;
+  popolaMacro('neg-f-macrogruppo',s.macrogruppo);
+  popolaTipo('neg-f-tipologia',s.macrogruppo,s.tipologia);
+  box.innerHTML='';
+  document.getElementById('neg-f-qty').focus();
+}
+
+async function saveNegAdd(){
+  const nome=document.getElementById('neg-f-nome').value.trim();
+  if(!nome){document.getElementById('neg-f-nome').focus();return;}
+  const quantita=parseInt(document.getElementById('neg-f-qty').value)||1;
+  const prezzo=parseFloat(document.getElementById('neg-f-prezzo').value)||0;
+  const peso=document.getElementById('neg-f-peso').value.trim();
+  const macrogruppo=document.getElementById('neg-f-macrogruppo').value;
+  const tipologia=document.getElementById('neg-f-tipologia').value;
+  const negozio=document.getElementById('negozioScreen').dataset.negozio||'';
+  const newProd={nome,quantita,scadenza:'',prezzo,peso,negozio,inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0};
+  const ins=await dbInsert(newProd);
+  if(ins){
+    prodotti.push(ins);
+    negozioItems.push({prodotto:{...ins},preso:true});
+  }
+  toggleNegAdd(false);
+  renderNegozio();
+  showToast(`✓ "${nome}" aggiunto alla spesa`);
+}
+
+function renderNegozio(){
+  const comp=negozioItems.filter(x=>x.preso),tot=comp.reduce((s,x)=>s+x.prodotto.prezzo*x.prodotto.quantita,0);
+  const btn=document.getElementById('completaBtn');btn.disabled=comp.length===0;btn.textContent=`✓ SPESA ULTIMATA (${comp.length})`;
+  const tRow=document.getElementById('totaleRow');
+  if(comp.length>0){tRow.style.display='block';tRow.textContent=`${comp.length} prodotti · Totale €${tot.toFixed(2)}`;}else tRow.style.display='none';
+  let html='';
+  negozioItems.forEach((item,i)=>{
+    const p=item.prodotto;
+    html+=`<div class="negozio-item ${item.preso?'checked':''}">
+      <div class="negozio-item-header" onclick="toggleNegozioItem(${i})">
+        <div class="check-circle">${item.preso?'✓':''}</div>
+        <span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span>
+        <div style="flex:1">
+          <span style="font-weight:700">${esc(p.nome)}</span>
+          ${p.tipologia?`<div style="font-size:.75rem;color:var(--text-mid)">${esc(p.macrogruppo||'')}${p.macrogruppo&&p.tipologia?' › ':''}${esc(p.tipologia||'')}</div>`:''}
+        </div>
+        <span style="color:var(--text-mid);font-size:.85rem">×${p.quantita}</span>
+      </div>
+      ${item.preso?`<div class="negozio-item-detail open">
+        <div class="field-row">
+          <div class="field"><label>Prezzo €</label><input type="number" min="0" step="0.01" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" placeholder="0.00" onchange="updateNF(${i},'prezzo',parseFloat(this.value)||0)"></div>
+          <div class="field"><label>Quantità</label><input type="number" min="1" value="${p.quantita}" onchange="updateNF(${i},'quantita',parseInt(this.value)||1)"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Peso</label><input value="${esc(p.peso)}" placeholder="500g" onchange="updateNF(${i},'peso',this.value)"></div>
+          <div class="field"><label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" placeholder="gg/mm/aaaa" inputmode="numeric" oninput="onNegScad(${i},this)"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">🏷️ In offerta</span>
+          <label class="toggle"><input type="checkbox" ${p.inOfferta?'checked':''} onchange="updateNF(${i},'inOfferta',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+      </div>`:''}
+    </div>`;
+  });
+  document.getElementById('negozioContent').innerHTML=html;
+}
+
+function toggleNegozioItem(i){negozioItems[i].preso=!negozioItems[i].preso;renderNegozio();}
+function updateNF(i,f,v){negozioItems[i].prodotto[f]=v;renderNegozio();}
+function onNegScad(i,input){input.value=fmtScad(input.value);negozioItems[i].prodotto.scadenza=input.value;}
+
+async function completaSpesa(){
+  const negozio=document.getElementById('negozioScreen').dataset.negozio||'';
+  const comp=negozioItems.filter(x=>x.preso);
+  for(const item of comp){
+    const acq={...item.prodotto,negozio:negozio||item.prodotto.negozio};
+    if(acq.prezzo>0) await salvaStorico(acq.nome,acq.prezzo,acq.quantita,acq.negozio,acq.macrogruppo,acq.tipologia);
+    const inCred=prodotti.find(x=>!x.inSpesa&&x.nome.toLowerCase()===acq.nome.toLowerCase());
+    if(inCred){
+      inCred.quantita+=acq.quantita;
+      if(acq.scadenza)inCred.scadenza=acq.scadenza;
+      if(acq.prezzo>0)inCred.prezzo=acq.prezzo;
+      if(acq.peso)inCred.peso=acq.peso;
+      if(acq.negozio)inCred.negozio=acq.negozio;
+      if(acq.macrogruppo)inCred.macrogruppo=acq.macrogruppo;
+      if(acq.tipologia)inCred.tipologia=acq.tipologia;
+      inCred.inOfferta=acq.inOfferta;
+      await dbUpdate(inCred);await dbDelete(acq.id);
+      prodotti=prodotti.filter(x=>x.id!==acq.id);
+    }else{
+      const p=prodotti.find(x=>x.id===acq.id);
+      if(p){Object.assign(p,{inSpesa:false,negozio:acq.negozio,scadenza:acq.scadenza,prezzo:acq.prezzo,peso:acq.peso,inOfferta:acq.inOfferta,macrogruppo:acq.macrogruppo,tipologia:acq.tipologia});await dbUpdate(p);}
+    }
+  }
+  closeNegozioScreen();currentTab=0;render();
+  showToast(`✓ ${comp.length} prodott${comp.length===1?'o':'i'} in credenza`);
+}
+
+// ── BOOT ──────────────────────────────────────────────
+const cfg=loadCfg();
+if(cfg)initSb(cfg.url,cfg.key);
+else show('setupScreen',true);
+</script>
+</body>
+</html>
