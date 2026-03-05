@@ -335,7 +335,13 @@
 <div class="overlay" id="addModal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-header"><h2 id="modalTitle">➕ Nuovo Prodotto</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Nome prodotto / Marchio *</label><input id="f-nome" placeholder="es. Activia Magro, Barilla Fusilli…" oninput="onModalNomeInput()" autocomplete="off"/><div class="suggest-box" id="modal-suggest-box"></div></div>
+    <div class="field"><label>Prodotto *</label><input id="f-prodotto" placeholder="es. Latte intero, Fusilli…" oninput="onModalProdottoInput()" autocomplete="off"/><div class="suggest-box" id="modal-suggest-box"></div></div>
+    <div class="field"><label>Marchio</label>
+      <div style="position:relative">
+        <input id="f-marchio" placeholder="es. Barilla, Granarolo… (opzionale)" oninput="onModalMarchioInput()" autocomplete="off"/>
+        <div class="autocomplete-dropdown" id="marchio-dropdown"></div>
+      </div>
+    </div>
     <div class="field-row">
       <div class="field"><label>Macrogruppo</label>
         <select id="f-macrogruppo" onchange="onModalMacroChange()">
@@ -1105,7 +1111,9 @@ function startRealtime(){
         const {eventType, new: newRow, old: oldRow} = payload;
         if(eventType === 'INSERT'){
           const row = {...newRow, scadenza: isoToScad(newRow.scadenza||'')};
-          if(!prodotti.find(p=>p.id===row.id)) prodotti.push(row);
+          // Salta se già presente localmente (inserito da questa sessione via dbInsert)
+          if(prodotti.find(p=>p.id===row.id)) return;
+          prodotti.push(row);
         } else if(eventType === 'UPDATE'){
           const row = {...newRow, scadenza: isoToScad(newRow.scadenza||'')};
           const idx = prodotti.findIndex(p=>p.id===row.id);
@@ -2039,7 +2047,9 @@ function openAddModal(id){
   if(id){
     const p=prodotti.find(x=>x.id===id);if(!p)return;
     document.getElementById('modalTitle').textContent='✏️ Modifica';
-    document.getElementById('f-nome').value=p.nome;
+    // Popola prodotto e marchio separati
+    document.getElementById('f-prodotto').value=p.prodotto||p.nome;
+    document.getElementById('f-marchio').value=p.marchio||'';
     document.getElementById('f-scadenza').value=p.scadenza;
     document.getElementById('f-prezzo').value=p.prezzo>0?p.prezzo.toFixed(2):'';
     document.getElementById('f-peso').value=fmtPeso(p.peso);
@@ -2051,23 +2061,31 @@ function openAddModal(id){
     popolaTipo('f-tipologia', p.macrogruppo||'', p.tipologia||'');
   }else{
     document.getElementById('modalTitle').textContent='➕ Nuovo Prodotto';
-    ['f-nome','f-scadenza','f-peso','f-negozio'].forEach(i=>document.getElementById(i).value='');
+    ['f-prodotto','f-marchio','f-scadenza','f-peso','f-negozio'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('f-prezzo').value='';
     document.getElementById('f-offerta').checked=false;
     document.getElementById('f-soglia').value=0;
   }
+  document.getElementById('modal-suggest-box').innerHTML='';
+  document.getElementById('marchio-dropdown').classList.remove('open');
   document.getElementById('modal-qty').textContent=modalQty;
   document.getElementById('addModal').classList.add('open');
-  setTimeout(()=>document.getElementById('f-nome').focus(),100);
+  setTimeout(()=>document.getElementById('f-prodotto').focus(),100);
 }
 function onModalMacroChange(){
   const macro=document.getElementById('f-macrogruppo').value;
   popolaTipo('f-tipologia',macro,'');
 }
-function closeModal(){document.getElementById('addModal').classList.remove('open');document.getElementById('modal-suggest-box').innerHTML='';}
+function closeModal(){
+  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('modal-suggest-box').innerHTML='';
+  document.getElementById('marchio-dropdown').classList.remove('open');
+}
 function changeModalQty(d){modalQty=Math.max(1,modalQty+d);document.getElementById('modal-qty').textContent=modalQty;}
 async function saveModal(){
-  const nome=document.getElementById('f-nome').value.trim();if(!nome){document.getElementById('f-nome').focus();return;}
+  const prodotto=document.getElementById('f-prodotto').value.trim();if(!prodotto){document.getElementById('f-prodotto').focus();return;}
+  const marchio=document.getElementById('f-marchio').value.trim();
+  const nome=marchio?`${prodotto} ${marchio}`:prodotto;
   const scadenza=fmtScad(document.getElementById('f-scadenza').value);
   const prezzo=parseFloat(document.getElementById('f-prezzo').value)||0;
   const peso=fmtPeso(document.getElementById('f-peso').value.trim());
@@ -2078,34 +2096,96 @@ async function saveModal(){
   const soglia_minima=parseInt(document.getElementById('f-soglia').value)||0;
   if(editingId){
     const p=prodotti.find(x=>x.id===editingId);
-    if(p){Object.assign(p,{nome,scadenza,prezzo,peso,negozio,inOfferta,macrogruppo,tipologia,soglia_minima,quantita:modalQty});await dbUpdate(p);}
+    if(p){Object.assign(p,{nome,prodotto,marchio,scadenza,prezzo,peso,negozio,inOfferta,macrogruppo,tipologia,soglia_minima,quantita:modalQty});await dbUpdate(p);}
   }else{
-    const ins=await dbInsert({nome,quantita:modalQty,scadenza,prezzo,peso,negozio,inOfferta,inSpesa:false,macrogruppo,tipologia,soglia_minima});
-    if(ins)prodotti.push(ins);
+    const ins=await dbInsert({nome,prodotto,marchio,quantita:modalQty,scadenza,prezzo,peso,negozio,inOfferta,inSpesa:false,macrogruppo,tipologia,soglia_minima});
+    if(ins){
+      prodotti.push(ins);
+      // Proponi aggiunta al catalogo se non presente
+      const nelCatalogo=catalogoCache.some(c=>c.nome.toLowerCase()===nome.toLowerCase());
+      if(!nelCatalogo) apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia);
+    }
   }
   closeModal();render();
 }
 document.getElementById('f-scadenza').addEventListener('input',function(){this.value=fmtScad(this.value);});
 
-function onModalNomeInput(){
+// ── MODAL AUTOCOMPLETE ────────────────────────────────
+function onModalProdottoInput(){
   const box=document.getElementById('modal-suggest-box');
-  const sugg=getSuggerimenti(document.getElementById('f-nome').value);
+  const val=document.getElementById('f-prodotto').value;
+  const sugg=getSuggerimenti(val);
   if(sugg.length===0){box.innerHTML='';return;}
   box._sugg=sugg;
   box.innerHTML=sugg.map((s,i)=>`
     <button type="button" class="suggest-chip ${s.mine?'mine':''}" onclick="applicaSuggerimentoModal(${i})">
-      ${getMacroEmoji(s.macrogruppo)} ${esc(s.nome)}<span class="suggest-meta">${s.tipologia?'· '+esc(s.tipologia):''}</span>
+      ${getMacroEmoji(s.macrogruppo)} ${esc(s.prodotto||s.nome)}
+      <span class="suggest-meta">${s.tipologia?'· '+esc(s.tipologia):''}${s.marchi&&s.marchi.length?' · '+s.marchi.length+' march'+(s.marchi.length===1?'io':'i'):''}</span>
     </button>`).join('');
 }
+
 function applicaSuggerimentoModal(i){
   const box=document.getElementById('modal-suggest-box');
   const s=box._sugg[i];if(!s)return;
-  document.getElementById('f-nome').value=s.nome;
+  // Compila prodotto (generico) e marchio separati
+  document.getElementById('f-prodotto').value=s.prodotto||s.nome;
+  document.getElementById('f-marchio').value=s.marchio||'';
   popolaMacro('f-macrogruppo',s.macrogruppo);
   popolaTipo('f-tipologia',s.macrogruppo,s.tipologia);
   box.innerHTML='';
-  document.getElementById('f-scadenza').focus();
+  // Aggiorna suggerimenti marchio
+  renderMarchiDropdown(s.prodotto||s.nome);
+  document.getElementById('f-marchio').focus();
 }
+
+function onModalMarchioInput(){
+  const prodotto=document.getElementById('f-prodotto').value.trim();
+  renderMarchiDropdown(prodotto);
+}
+
+function renderMarchiDropdown(prodotto){
+  const dd=document.getElementById('marchio-dropdown');
+  const val=document.getElementById('f-marchio').value.toLowerCase();
+  if(!prodotto){dd.classList.remove('open');return;}
+  // Cerca marchi per questo prodotto nel catalogo
+  const marchi=[...new Set(
+    catalogoCache
+      .filter(c=>(c.prodotto||c.nome).toLowerCase()===prodotto.toLowerCase()&&c.marchio)
+      .map(c=>c.marchio)
+  )].filter(m=>!val||m.toLowerCase().includes(val));
+  // Aggiungi anche marchi da prodotti già in credenza
+  prodotti.filter(p=>!p.inSpesa&&(p.prodotto||p.nome).toLowerCase()===prodotto.toLowerCase()&&p.marchio)
+    .forEach(p=>{if(!marchi.includes(p.marchio))marchi.push(p.marchio);});
+  if(marchi.length===0){dd.classList.remove('open');dd.innerHTML='';return;}
+  dd.innerHTML=marchi.map(m=>`
+    <div class="ac-item" onmousedown="selezionaMarchio('${esc(m)}')">
+      <span style="font-size:1rem">🏷️</span>
+      <div class="ac-item-left"><div class="ac-item-nome">${esc(m)}</div></div>
+    </div>`).join('');
+  dd.classList.add('open');
+}
+
+function selezionaMarchio(m){
+  document.getElementById('f-marchio').value=m;
+  document.getElementById('marchio-dropdown').classList.remove('open');
+  // Se mancano macro/tipologia, cerca nel catalogo
+  const prodotto=document.getElementById('f-prodotto').value.trim();
+  const nome=m?`${prodotto} ${m}`:prodotto;
+  if(!document.getElementById('f-macrogruppo').value){
+    const match=catalogoCache.find(c=>c.nome.toLowerCase()===nome.toLowerCase());
+    if(match){
+      popolaMacro('f-macrogruppo',match.macrogruppo);
+      popolaTipo('f-tipologia',match.macrogruppo,match.tipologia);
+    }
+  }
+}
+
+// Chiudi dropdown marchio cliccando fuori
+document.addEventListener('click',e=>{
+  const wrap=document.getElementById('f-marchio')?.closest('.field');
+  const dd=document.getElementById('marchio-dropdown');
+  if(dd&&wrap&&!wrap.contains(e.target))dd.classList.remove('open');
+});
 
 // ── QUICK ADD AUTOCOMPLETE ────────────────────────────
 let acIndex=-1;
@@ -2313,6 +2393,13 @@ function renderNegozio(){
             <div class="field"><label>Prezzo €</label><input type="number" min="0" step="0.01" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" placeholder="0.00" onchange="updateNF(${i},'prezzo',parseFloat(this.value)||0)"></div>
             <div class="field"><label>Quantità</label><input type="number" min="1" value="${p.quantita}" onchange="updateNF(${i},'quantita',parseInt(this.value)||1)"></div>
           </div>
+          <div class="field" style="position:relative">
+            <label>Marchio <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">(opzionale)</span></label>
+            <input id="neg-marchio-${i}" value="${esc(p.marchio||'')}" placeholder="es. Barilla, Granarolo…" autocomplete="off"
+              oninput="onNegMarchioInput(${i},this.value)"
+              onchange="updateNF(${i},'marchio',this.value)">
+            <div class="autocomplete-dropdown" id="neg-marchio-dd-${i}"></div>
+          </div>
           <div class="field-row">
             <div class="field"><label>Peso (es. 500g, 1kg)</label><input value="${esc(fmtPeso(p.peso))}" placeholder="500g" onchange="updateNF(${i},'peso',this.value)"></div>
             <div class="field"><label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" placeholder="gg/mm/aaaa" inputmode="numeric" oninput="onNegScad(${i},this)"></div>
@@ -2375,6 +2462,39 @@ function setTipoOfferta(i,tipo){
   aperti.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('open');});
 }
 function onNegScad(i,input){input.value=fmtScad(input.value);negozioItems[i].prodotto.scadenza=input.value;}
+
+function onNegMarchioInput(i, val){
+  negozioItems[i].prodotto.marchio = val;
+  const p = negozioItems[i].prodotto;
+  const prodottoNome = p.prodotto || p.nome;
+  const dd = document.getElementById(`neg-marchio-dd-${i}`);
+  if(!dd) return;
+  const q = val.toLowerCase();
+  // Marchi nel catalogo per questo prodotto
+  const marchi = [...new Set([
+    ...catalogoCache
+      .filter(c => (c.prodotto||c.nome).toLowerCase() === prodottoNome.toLowerCase() && c.marchio)
+      .map(c => c.marchio),
+    ...prodotti
+      .filter(p2 => !p2.inSpesa && (p2.prodotto||p2.nome).toLowerCase() === prodottoNome.toLowerCase() && p2.marchio)
+      .map(p2 => p2.marchio),
+  ])].filter(m => !q || m.toLowerCase().includes(q));
+  if(marchi.length === 0){dd.classList.remove('open');dd.innerHTML='';return;}
+  dd.innerHTML = marchi.map(m=>`
+    <div class="ac-item" onmousedown="selezionaMarchioNeg(${i},'${esc(m)}')">
+      <span style="font-size:1rem">🏷️</span>
+      <div class="ac-item-left"><div class="ac-item-nome">${esc(m)}</div></div>
+    </div>`).join('');
+  dd.classList.add('open');
+}
+
+function selezionaMarchioNeg(i, m){
+  negozioItems[i].prodotto.marchio = m;
+  const inp = document.getElementById(`neg-marchio-${i}`);
+  if(inp) inp.value = m;
+  const dd = document.getElementById(`neg-marchio-dd-${i}`);
+  if(dd){dd.classList.remove('open');dd.innerHTML='';}
+}
 
 async function completaSpesa(){
   const negozio=document.getElementById('negozioScreen').dataset.negozio||'';
