@@ -26,7 +26,44 @@
   .app{width:100%;max-width:540px;min-height:100vh;display:flex;flex-direction:column;background:transparent;position:relative;z-index:1;}
   .hidden{display:none!important;}
 
-  /* SETUP */
+  /* ── SMALL SCREEN (≤390px — iPhone mini/SE) ──────── */
+  @media(max-width:390px){
+    header{padding:9px 10px;}
+    .header-title{font-size:1.05rem;gap:6px;}
+    .icon-btn{width:30px;height:30px;font-size:.85rem;border-radius:8px;}
+    .user-pill{font-size:.65rem;padding:3px 8px;max-width:80px;}
+    .tab{font-size:.72rem;padding:9px 2px;gap:3px;}
+    .badge{font-size:.58rem;padding:1px 5px;min-width:15px;}
+    .content{padding:8px;}
+    .card-header{padding:10px 11px;gap:8px;}
+    .card-icon{width:30px;height:30px;font-size:1rem;border-radius:8px;}
+    .card-name{font-size:.9rem;}
+    .card-meta{font-size:.68rem;gap:4px;margin-top:2px;}
+    .chip{font-size:.65rem;padding:2px 5px;}
+    .qty-badge{font-size:.82rem;padding:3px 8px;}
+    .card-detail{padding:0 11px 11px;}
+    .spesa-card{padding:9px 11px;gap:8px;}
+    .spesa-nome{font-size:.9rem;}
+    .spesa-qty-btn{width:24px;height:24px;font-size:.9rem;}
+    .add-bar{padding:8px;}
+    .add-input{padding:8px 11px;font-size:.88rem;}
+    .btn-primary{font-size:.85rem;padding:8px 12px;}
+    .alert-banner{font-size:.78rem;padding:8px 11px;}
+    .kpi-val{font-size:1.1rem;}
+    .kpi-label{font-size:.62rem;}
+    .kpi{padding:10px 7px;}
+    .modal{margin:8px;padding:16px;}
+    .field label{font-size:.68rem;}
+    .field input,.field select{font-size:.88rem;padding:8px 10px;}
+    .field-row{gap:7px;}
+    .negozio-header{padding:10px 12px;}
+    .negozio-content{padding:8px;}
+    .negozio-footer{padding:10px 12px;}
+    .spesa-start-btn{font-size:.9rem;padding:11px;}
+    .cat-pill{font-size:.72rem;padding:4px 10px;}
+    .stat-section{padding:12px;}
+    .stat-section h3{font-size:.95rem;}
+  }
   .setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
   .setup-box{background:var(--card);border:1px solid var(--border-mid);border-radius:24px;padding:32px 24px;box-shadow:var(--shadow),0 0 60px rgba(52,211,153,.05);width:100%;max-width:420px;}
   .setup-box h1{font-family:'Instrument Serif',serif;color:var(--green);font-size:1.6rem;margin-bottom:6px;letter-spacing:-.01em;}
