@@ -44,7 +44,8 @@
   /* SHARED */
   .field{margin-top:10px;}
   .field label{font-size:.75rem;font-weight:700;color:var(--text-dim);display:block;margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;}
-  .field input,.field select{width:100%;padding:10px 13px;border:1px solid var(--border-mid);border-radius:10px;font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;outline:none;transition:border .15s,box-shadow .15s;background:rgba(255,255,255,.04);color:var(--text);}
+  .field input,.field select{width:100%;padding:10px 13px;border:1px solid var(--border-mid);border-radius:10px;font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;outline:none;transition:border .15s,box-shadow .15s;background:var(--bg3);color:var(--text);}
+  .field select option{background:var(--bg3);color:var(--text);}
   .field input:focus,.field select:focus{border-color:var(--green-border);box-shadow:0 0 0 3px rgba(52,211,153,.1);}
   .field select option{background:#1c2330;color:var(--text);}
   .field-row{display:flex;gap:10px;margin-top:10px;}
@@ -179,7 +180,8 @@
   .negozio-info strong{display:block;color:var(--green);font-size:.95rem;}
   .stat-empty{text-align:center;padding:28px;color:var(--text-dim);font-size:.88rem;line-height:1.6;}
   .chart-container{position:relative;height:200px;margin-top:8px;}
-  .prodotto-select{width:100%;padding:9px 12px;border:1px solid var(--border-mid);border-radius:10px;font-family:'Bricolage Grotesque',sans-serif;font-size:.9rem;outline:none;background:rgba(255,255,255,.04);color:var(--text);margin-bottom:12px;}
+  .prodotto-select{width:100%;padding:9px 12px;border:1px solid var(--border-mid);border-radius:10px;font-family:'Bricolage Grotesque',sans-serif;font-size:.9rem;outline:none;background:var(--bg3);color:var(--text);margin-bottom:12px;}
+  .prodotto-select option{background:var(--bg3);color:var(--text);}
 
   /* MODAL */
   .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;padding:16px;}
@@ -188,6 +190,10 @@
   @keyframes modalIn{from{transform:scale(.95) translateY(8px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
   .modal h2{font-family:'Instrument Serif',serif;font-size:1.25rem;margin-bottom:14px;color:var(--green);letter-spacing:-.01em;}
   .modal-actions{display:flex;gap:10px;margin-top:20px;}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .modal-header h2{margin-bottom:0;}
+  .modal-close{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--text-dim);transition:all .15s;flex-shrink:0;}
+  .modal-close:hover{background:var(--red-dim);border-color:var(--red-border);color:var(--red);}
 
   /* NEGOZIO SCREEN */
   .negozio-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:400;flex-direction:column;max-width:540px;margin:0 auto;}
@@ -288,6 +294,10 @@
         <div class="sort-dropdown" id="sortDropdown">
           <button class="icon-btn" onclick="toggleSort()">⇅</button>
           <div class="sort-menu" id="sortMenu">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px 4px;border-bottom:1px solid var(--border);margin-bottom:4px">
+              <span style="font-size:.75rem;font-weight:700;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase">Ordina</span>
+              <button class="modal-close" onclick="document.getElementById('sortMenu').classList.remove('open')" style="width:24px;height:24px;font-size:.8rem">✕</button>
+            </div>
             <button onclick="setSort('nome')" id="sort-nome" class="active">📝 Per nome</button>
             <button onclick="setSort('scadenza')" id="sort-scadenza">📅 Per scadenza</button>
             <button onclick="setSort('quantita')" id="sort-quantita">🔢 Per quantità</button>
@@ -322,9 +332,9 @@
 </div>
 
 <!-- ADD/EDIT MODAL -->
-<div class="overlay" id="addModal">
+<div class="overlay" id="addModal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
-    <h2 id="modalTitle">➕ Nuovo Prodotto</h2>
+    <div class="modal-header"><h2 id="modalTitle">➕ Nuovo Prodotto</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="field"><label>Nome prodotto / Marchio *</label><input id="f-nome" placeholder="es. Activia Magro, Barilla Fusilli…" oninput="onModalNomeInput()" autocomplete="off"/><div class="suggest-box" id="modal-suggest-box"></div></div>
     <div class="field-row">
       <div class="field"><label>Macrogruppo</label>
@@ -366,9 +376,9 @@
 </div>
 
 <!-- POPUP PRODOTTO ESAURITO -->
-<div class="overlay" id="esauritoModal">
+<div class="overlay" id="esauritoModal" onclick="if(event.target===this)chiudiEsaurito()">
   <div class="modal">
-    <h2>📦 Prodotto esaurito</h2>
+    <div class="modal-header"><h2>📦 Prodotto esaurito</h2><button class="modal-close" onclick="chiudiEsaurito()">✕</button></div>
     <p id="esauritoMsg" style="font-size:.95rem;color:var(--text-mid);line-height:1.5;"></p>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="chiudiEsaurito()">No, grazie</button>
@@ -378,10 +388,15 @@
 </div>
 
 <!-- GESTIONE GERARCHIA -->
-<div class="overlay" id="gerarchiaModal">
+<div class="overlay" id="gerarchiaModal" onclick="if(event.target===this)chiudiGerarchiaModal()">
   <div class="modal">
-    <h2>🗂️ Gestisci categorie</h2>
+    <div class="modal-header"><h2>🗂️ Gestisci categorie</h2><button class="modal-close" onclick="chiudiGerarchiaModal()">✕</button></div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button class="stat-tab active" id="gerTab-cat" onclick="switchGerTab('cat')">📂 Categorie</button>
+      <button class="stat-tab" id="gerTab-cat-log" onclick="switchGerTab('catalogo')">📋 Catalogo</button>
+    </div>
     <div id="gerarchiaContent"></div>
+    <div id="catalogoContent" style="display:none"></div>
     <div class="modal-actions" style="margin-top:14px">
       <button class="btn-primary" onclick="chiudiGerarchiaModal()" style="width:100%">✓ Fatto</button>
     </div>
@@ -389,9 +404,9 @@
 </div>
 
 <!-- NEGOZIO DIALOG -->
-<div class="overlay" id="negozioDialog">
+<div class="overlay" id="negozioDialog" onclick="if(event.target===this)closeNegozioDialog()">
   <div class="modal">
-    <h2>🛍️ In quale negozio sei?</h2>
+    <div class="modal-header"><h2>🛍️ In quale negozio sei?</h2><button class="modal-close" onclick="closeNegozioDialog()">✕</button></div>
     <div class="field"><input id="negozioInput" placeholder="es. Esselunga, Coop…" onkeydown="if(event.key==='Enter')startSpesa()"/></div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeNegozioDialog()">Annulla</button>
@@ -440,9 +455,9 @@
 </div>
 
 <!-- BUDGET MODAL -->
-<div class="overlay" id="budgetModal">
+<div class="overlay" id="budgetModal" onclick="if(event.target===this)chiudiBudgetModal()">
   <div class="modal">
-    <h2>💰 Budget mensile</h2>
+    <div class="modal-header"><h2>💰 Budget mensile</h2><button class="modal-close" onclick="chiudiBudgetModal()">✕</button></div>
     <p style="font-size:.88rem;color:var(--text-mid);margin-bottom:16px;line-height:1.6">Imposta un tetto di spesa mensile. Vedrai quanto ti rimane direttamente nella lista della spesa.</p>
     <div class="field">
       <label>Budget mensile (€)</label>
@@ -456,12 +471,59 @@
   </div>
 </div>
 
+<!-- CONFERMA ELIMINAZIONE -->
+<div class="overlay" id="eliminaModal" onclick="if(event.target===this)chiudiEliminaModal()">
+  <div class="modal">
+    <div class="modal-header"><h2>🗑️ Elimina prodotto</h2><button class="modal-close" onclick="chiudiEliminaModal()">✕</button></div>
+    <p id="eliminaMsg" style="font-size:.95rem;color:var(--text-mid);line-height:1.5;"></p>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="chiudiEliminaModal()">Annulla</button>
+      <button style="flex:1;padding:10px 16px;background:var(--red-dim);color:var(--red);border:1px solid var(--red-border);border-radius:11px;font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;font-weight:800;cursor:pointer" onclick="confermaElimina()">🗑️ Elimina</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGGIUNGI AL CATALOGO MODAL -->
+<div class="overlay" id="catalogoPropostaModal" onclick="if(event.target===this)chiudiCatalogoPropostaModal()">
+  <div class="modal">
+    <div class="modal-header"><h2>📋 Aggiungi al catalogo?</h2><button class="modal-close" onclick="chiudiCatalogoPropostaModal()">✕</button></div>
+    <p style="font-size:.9rem;color:var(--text-mid);line-height:1.6;margin-bottom:16px">
+      <strong id="cp-nome" style="color:var(--text)"></strong> non è nel tuo catalogo. Vuoi aggiungerlo?
+    </p>
+    <div class="field-row">
+      <div class="field"><label>Prodotto generico *</label><input id="cp-prodotto" placeholder="es. Latte intero"/></div>
+      <div class="field"><label>Marchio</label><input id="cp-marchio" placeholder="es. Granarolo"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Macrogruppo</label>
+        <select id="cp-macrogruppo" onchange="onCpMacroChange()">
+          <option value="">— Macrogruppo —</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipologia</label>
+        <select id="cp-tipologia" disabled>
+          <option value="">— Tipologia —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="chiudiCatalogoPropostaModal()">Salta</button>
+      <button class="btn-primary" onclick="confermaCatalogoProposta()" style="flex:1">✓ Aggiungi al catalogo</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const SQL_SETUP = `-- Tabella prodotti
-CREATE TABLE prodotti (
+const SQL_SETUP = `-- ══════════════════════════════════════════════════════
+-- NUOVO SETUP COMPLETO (esegui tutto in SQL Editor)
+-- ══════════════════════════════════════════════════════
+
+-- Tabella prodotti (con user_id per isolamento per utente)
+CREATE TABLE IF NOT EXISTS prodotti (
   id            BIGSERIAL PRIMARY KEY,
+  user_id       UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   nome          TEXT    NOT NULL,
   quantita      INTEGER NOT NULL DEFAULT 1,
   scadenza      TEXT    NOT NULL DEFAULT '',
@@ -474,27 +536,66 @@ CREATE TABLE prodotti (
   macrogruppo   TEXT    NOT NULL DEFAULT '',
   soglia_minima INTEGER NOT NULL DEFAULT 0
 );
--- Se hai già la tabella con 'categoria', esegui questa migrazione:
--- ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS tipologia TEXT NOT NULL DEFAULT '';
--- ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS macrogruppo TEXT NOT NULL DEFAULT '';
--- UPDATE prodotti SET macrogruppo = categoria WHERE macrogruppo = '';
--- ALTER TABLE prodotti DROP COLUMN IF EXISTS categoria;
 ALTER TABLE prodotti ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "utenti autenticati" ON prodotti FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "utenti autenticati" ON prodotti;
+CREATE POLICY "utente proprio" ON prodotti FOR ALL TO authenticated
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- Tabella storico prezzi
-CREATE TABLE storico_prezzi (
+-- Migrazione se hai già la tabella senza user_id:
+-- ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+-- UPDATE prodotti SET user_id = auth.uid() WHERE user_id IS NULL;
+-- Colonne prodotto e marchio (nuova struttura catalogo):
+-- ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS prodotto TEXT NOT NULL DEFAULT '';
+-- ALTER TABLE prodotti ADD COLUMN IF NOT EXISTS marchio  TEXT NOT NULL DEFAULT '';
+
+-- Tabella storico prezzi (con user_id)
+CREATE TABLE IF NOT EXISTS storico_prezzi (
   id          BIGSERIAL PRIMARY KEY,
+  user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   nome        TEXT        NOT NULL,
   prezzo      REAL        NOT NULL,
   quantita    INTEGER     NOT NULL DEFAULT 1,
   negozio     TEXT        NOT NULL DEFAULT '',
   macrogruppo TEXT        NOT NULL DEFAULT '',
   tipologia   TEXT        NOT NULL DEFAULT '',
-  data        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  data        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  tipo_offerta TEXT       NOT NULL DEFAULT '',
+  risparmio   INTEGER     NOT NULL DEFAULT 0
 );
 ALTER TABLE storico_prezzi ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "utenti autenticati" ON storico_prezzi FOR ALL TO authenticated USING (true) WITH CHECK (true);`;
+DROP POLICY IF EXISTS "utenti autenticati" ON storico_prezzi;
+CREATE POLICY "utente proprio storico" ON storico_prezzi FOR ALL TO authenticated
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Tabella catalogo prodotti (per utente)
+CREATE TABLE IF NOT EXISTS catalogo_prodotti (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  nome        TEXT        NOT NULL,
+  macrogruppo TEXT        NOT NULL DEFAULT '',
+  tipologia   TEXT        NOT NULL DEFAULT '',
+  UNIQUE(user_id, nome)
+);
+ALTER TABLE catalogo_prodotti ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "utente proprio catalogo" ON catalogo_prodotti;
+CREATE POLICY "utente proprio catalogo" ON catalogo_prodotti FOR ALL TO authenticated
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Tabella gerarchia categorie (per utente)
+CREATE TABLE IF NOT EXISTS gerarchia (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  macrogruppo TEXT        NOT NULL,
+  tipologia   TEXT        NOT NULL,
+  UNIQUE(user_id, macrogruppo, tipologia)
+);
+ALTER TABLE gerarchia ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "utente propria gerarchia" ON gerarchia;
+CREATE POLICY "utente propria gerarchia" ON gerarchia FOR ALL TO authenticated
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Abilita Realtime per sincronizzazione live
+ALTER PUBLICATION supabase_realtime ADD TABLE prodotti;`;
 
 // ── GERARCHIA MACROGRUPPO → TIPOLOGIE ─────────────────
 const GERARCHIA_DEFAULT = {
@@ -519,7 +620,9 @@ const GERARCHIA_DEFAULT = {
 
 const CFG_KEY = 'credenza_sb_cfg';
 
-let gerarchia = JSON.parse(JSON.stringify(GERARCHIA_DEFAULT));
+// Cache del catalogo caricato da Supabase; fallback sull'array hardcoded
+let catalogoCache = [];
+let gerarchia = {};
 let sb = null;
 let prodotti = [];
 let storicoCache = [];
@@ -531,8 +634,6 @@ let editingId = null;
 let modalQty = 1;
 let negozioItems = [];
 let currentUser = null;
-let pollTimer = null;
-let lastHash = '';
 let esauritoPendente = null;
 let budgetMensile = parseFloat(localStorage.getItem('credenza_budget')||'0')||0;
 
@@ -585,18 +686,19 @@ function translateAuthError(msg){
   if(msg.includes('Password should'))return 'Password di almeno 6 caratteri.';
   return msg;
 }
-function onLogin(user){
+async function onLogin(user){
   currentUser=user;
   show('authScreen',false);
   show('mainApp',true);
   document.getElementById('userPill').textContent=user.email.split('@')[0];
-  loadGerarchia();
-  loadAll();
+  await loadGerarchia();
+  await loadCatalogo();   // catalogo prima, serve per la riconciliazione
+  await loadAll();        // poi prodotti, così riconciliaCategorie ha il catalogo pronto
   loadStorico();
-  startPolling();
+  startRealtime();
 }
 async function doLogout(){
-  stopPolling();
+  stopRealtime();
   await sb.auth.signOut();
   currentUser=null;prodotti=[];
   show('mainApp',false);
@@ -606,10 +708,35 @@ async function doLogout(){
 }
 
 // ── GERARCHIA MANAGEMENT ──────────────────────────────
-function loadGerarchia(){
-  try{const r=localStorage.getItem('credenza_gerarchia');if(r)gerarchia=JSON.parse(r);}catch{}
+async function loadGerarchia(){
+  try{
+    const{data,error}=await sb.from('gerarchia').select('macrogruppo,tipologia').order('macrogruppo').order('tipologia');
+    if(!error&&data&&data.length>0){
+      const g={};
+      data.forEach(r=>{
+        if(!g[r.macrogruppo])g[r.macrogruppo]=[];
+        if(!g[r.macrogruppo].includes(r.tipologia))g[r.macrogruppo].push(r.tipologia);
+      });
+      gerarchia=g;
+      return;
+    }
+    // Tabella vuota o errore: mantieni GERARCHIA_DEFAULT in memoria (non scrive su Supabase)
+  }catch(e){console.warn('Gerarchia Supabase non disponibile',e);}
 }
-function salvaGerarchia(){localStorage.setItem('credenza_gerarchia',JSON.stringify(gerarchia));}
+async function salvaGerarchia(){
+  if(!currentUser)return;
+  try{
+    await sb.from('gerarchia').delete().eq('user_id',currentUser.id);
+    const righe=[];
+    Object.entries(gerarchia).forEach(([macro,tipologie])=>{
+      tipologie.forEach(t=>righe.push({user_id:currentUser.id,macrogruppo:macro,tipologia:t}));
+    });
+    if(righe.length>0){
+      for(let i=0;i<righe.length;i+=50)
+        await sb.from('gerarchia').insert(righe.slice(i,i+50));
+    }
+  }catch(e){showToast('❌ Errore salvataggio categorie');console.error(e);}
+}
 
 function getMacrogruppi(){return Object.keys(gerarchia);}
 function getTipologie(macro){return macro&&gerarchia[macro]?gerarchia[macro]:[];}
@@ -632,8 +759,87 @@ function popolaTipo(selId, macro, valoreCorrente=''){
 // Gestione modale gerarchia
 function apriGerarchiaModal(){
   renderGerarchiaModal();
+  switchGerTab('cat');
   document.getElementById('gerarchiaModal').classList.add('open');
 }
+function switchGerTab(tab){
+  document.getElementById('gerarchiaContent').style.display=tab==='cat'?'block':'none';
+  document.getElementById('catalogoContent').style.display=tab==='catalogo'?'block':'none';
+  document.getElementById('gerTab-cat').className='stat-tab'+(tab==='cat'?' active':'');
+  document.getElementById('gerTab-cat-log').className='stat-tab'+(tab==='catalogo'?' active':'');
+  if(tab==='catalogo')renderCatalogoUI();
+}
+let catFiltro='';
+function renderCatalogoUI(){
+  const el=document.getElementById('catalogoContent');if(!el)return;
+  const q=catFiltro.toLowerCase().trim();
+  const filtrati=q?catalogoCache.filter(c=>c.nome.toLowerCase().includes(q)||c.macrogruppo.toLowerCase().includes(q)):catalogoCache;
+
+  el.innerHTML=`
+    <div style="margin-bottom:10px;font-size:.78rem;color:var(--text-dim)">
+      <span style="color:var(--green)">✓ Supabase</span> · ${catalogoCache.length} prodotti
+    </div>
+    <input class="add-input" placeholder="Cerca nel catalogo…" value="${esc(catFiltro)}" oninput="catFiltro=this.value;renderCatalogoUI()" style="margin-bottom:10px;width:100%;padding:8px 12px">
+    <div style="max-height:220px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:10px">
+      ${filtrati.length===0?`<div style="padding:14px;text-align:center;color:var(--text-dim);font-size:.85rem">Nessun prodotto trovato</div>`:
+        filtrati.map(c=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-size:.88rem;font-weight:700">${esc(c.prodotto||c.nome)}${c.marchio?` <span style="color:var(--text-dim);font-size:.78rem;font-weight:400">· ${esc(c.marchio)}</span>`:''}</div>
+              <div style="font-size:.72rem;color:var(--text-dim)">${getMacroEmoji(c.macrogruppo)} ${esc(c.macrogruppo)}${c.tipologia?' › '+esc(c.tipologia):''}</div>
+            </div>
+            ${isSupabase?`<button class="btn-delete" onclick="eliminaDalCatalogo(${c.id})" style="width:26px;height:26px;font-size:.8rem">🗑</button>`:''}
+          </div>`).join('')}
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:.8rem;font-weight:700;color:var(--text-mid);margin-bottom:8px">➕ Aggiungi al catalogo</div>
+      <div class="field-row">
+        <div class="field"><label>Prodotto generico *</label><input id="cat-f-prodotto" class="add-input" placeholder="es. Latte intero" style="width:100%;padding:8px 12px"></div>
+        <div class="field"><label>Marchio</label><input id="cat-f-marchio" class="add-input" placeholder="es. Granarolo" style="width:100%;padding:8px 12px"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:1">
+          <select id="cat-f-macro" style="width:100%;padding:8px 10px;border:1px solid rgba(255,255,255,.11);border-radius:9px;font-family:'Bricolage Grotesque',sans-serif;font-size:.88rem;background:var(--bg3);color:var(--text)" onchange="onCatMacroChange()">
+            <option value="">— Macrogruppo —</option>
+            ${getMacrogruppi().map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="flex:1">
+          <select id="cat-f-tipo" disabled style="width:100%;padding:8px 10px;border:1px solid rgba(255,255,255,.11);border-radius:9px;font-family:'Bricolage Grotesque',sans-serif;font-size:.88rem;background:var(--bg3);color:var(--text)">
+            <option value="">— Tipologia —</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="aggiungiAlCatalogo()" style="width:100%;margin-top:8px" ${!isSupabase?'disabled':''}>＋ Aggiungi</button>
+    </div>`;
+}
+
+function onCatMacroChange(){
+  const macro=document.getElementById('cat-f-macro').value;
+  popolaTipo('cat-f-tipo',macro,'');
+}
+
+async function aggiungiAlCatalogo(){
+  const prodotto=document.getElementById('cat-f-prodotto').value.trim();
+  if(!prodotto){document.getElementById('cat-f-prodotto').focus();return;}
+  const marchio=document.getElementById('cat-f-marchio').value.trim();
+  const nome=marchio?`${prodotto} ${marchio}`:prodotto;
+  const macrogruppo=document.getElementById('cat-f-macro').value;
+  const tipologia=document.getElementById('cat-f-tipo').value;
+  if(catalogoCache.find(c=>c.nome.toLowerCase()===nome.toLowerCase())){showToast('Prodotto già nel catalogo');return;}
+  setSyncing(true);
+  const result=await dbCatalogoInsert(nome,prodotto,marchio,macrogruppo,tipologia);
+  setSyncing(false);
+  if(result){showToast(`✓ "${nome}" aggiunto al catalogo`);catFiltro='';renderCatalogoUI();}
+}
+
+async function eliminaDalCatalogo(id){
+  setSyncing(true);
+  await dbCatalogoDelete(id);
+  setSyncing(false);
+  renderCatalogoUI();
+}
+
 function chiudiGerarchiaModal(){
   document.getElementById('gerarchiaModal').classList.remove('open');
   // aggiorna i select nel modal add aperto
@@ -648,8 +854,8 @@ function renderGerarchiaModal(){
   let html=`<div style="margin-bottom:12px">
     <label style="font-size:.8rem;font-weight:700;color:var(--text-mid);display:block;margin-bottom:4px">Macrogruppo</label>
     <div style="display:flex;gap:8px">
-      <select id="gerSelMacro" style="flex:1;padding:8px 10px;border:1px solid rgba(255,255,255,.11);border-radius:9px;font-family:'Bricolage Grotesque',sans-serif;font-size:.9rem;background:rgba(255,255,255,.04);color:var(--text)" onchange="renderGerarchiaModal()">
-        ${getMacrogruppi().map(m=>`<option value="${esc(m)}" ${m===selMacro?'selected':''}>${esc(m)}</option>`).join('')}
+      <select id="gerSelMacro" style="flex:1;padding:8px 10px;border:1px solid rgba(255,255,255,.11);border-radius:9px;font-family:'Bricolage Grotesque',sans-serif;font-size:.9rem;background:var(--bg3);color:var(--text)" onchange="renderGerarchiaModal()">
+        ${getMacrogruppi().map(m=>`<option value="${esc(m)}" ${m===selMacro?'selected':''} style="background:var(--bg3);color:var(--text)">${esc(m)}</option>`).join('')}
       </select>
       <button class="btn-delete" onclick="eliminaMacro('${esc(selMacro)}')" title="Elimina macrogruppo" style="flex-shrink:0">🗑</button>
     </div>
@@ -674,257 +880,91 @@ function renderGerarchiaModal(){
   </div>`;
   el.innerHTML=html;
 }
-function aggiungiMacro(){
+async function aggiungiMacro(){
   const nome=document.getElementById('gerNuovoMacro').value.trim();
   if(!nome||gerarchia[nome])return;
-  gerarchia[nome]=[];salvaGerarchia();
+  gerarchia[nome]=[];
   document.getElementById('gerNuovoMacro').value='';
-  // seleziona il nuovo
+  await salvaGerarchia();
   renderGerarchiaModal();
   setTimeout(()=>{const s=document.getElementById('gerSelMacro');if(s)s.value=nome;renderGerarchiaModal();},50);
 }
-function aggiungiTipo(){
+async function aggiungiTipo(){
   const macro=document.getElementById('gerSelMacro').value;
   const nome=document.getElementById('gerNuovaTipo').value.trim();
   if(!macro||!nome||gerarchia[macro].includes(nome))return;
-  gerarchia[macro].push(nome);salvaGerarchia();
+  gerarchia[macro].push(nome);
   document.getElementById('gerNuovaTipo').value='';
+  await salvaGerarchia();
   renderGerarchiaModal();
 }
-function eliminaMacro(macro){
+async function eliminaMacro(macro){
   if(!gerarchia[macro])return;
   if(!confirm(`Eliminare il macrogruppo "${macro}" e tutte le sue tipologie?`))return;
-  delete gerarchia[macro];salvaGerarchia();renderGerarchiaModal();
+  delete gerarchia[macro];
+  await salvaGerarchia();
+  renderGerarchiaModal();
 }
-function eliminaTipo(macro,i){
+async function eliminaTipo(macro,i){
   if(!gerarchia[macro])return;
-  gerarchia[macro].splice(i,1);salvaGerarchia();renderGerarchiaModal();
+  gerarchia[macro].splice(i,1);
+  await salvaGerarchia();
+  renderGerarchiaModal();
 }
 
+
 // ── CATALOGO PRODOTTI PREDEFINITI ─────────────────────
-const CATALOGO = [
-  // Latticini – Latte
-  {nome:'Latte intero',macrogruppo:'Latticini',tipologia:'Latte'},
-  {nome:'Latte parzialmente scremato',macrogruppo:'Latticini',tipologia:'Latte'},
-  {nome:'Latte scremato',macrogruppo:'Latticini',tipologia:'Latte'},
-  {nome:'Latte senza lattosio',macrogruppo:'Latticini',tipologia:'Latte'},
-  {nome:'Latte di soia',macrogruppo:'Latticini',tipologia:'Latte'},
-  {nome:'Latte di avena',macrogruppo:'Latticini',tipologia:'Latte'},
-  // Latticini – Yogurt
-  {nome:'Yogurt bianco intero',macrogruppo:'Latticini',tipologia:'Yogurt'},
-  {nome:'Yogurt magro',macrogruppo:'Latticini',tipologia:'Yogurt'},
-  {nome:'Yogurt greco',macrogruppo:'Latticini',tipologia:'Yogurt'},
-  {nome:'Yogurt alla frutta',macrogruppo:'Latticini',tipologia:'Yogurt'},
-  {nome:'Yogurt Activia',macrogruppo:'Latticini',tipologia:'Yogurt'},
-  {nome:'Yogurt Müller',macrogruppo:'Latticini',tipologia:'Yogurt'},
-  // Latticini – Formaggio
-  {nome:'Parmigiano Reggiano',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  {nome:'Grana Padano',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  {nome:'Pecorino',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  {nome:'Provola',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  {nome:'Scamorza',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  {nome:'Emmental',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  {nome:'Asiago',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  {nome:'Taleggio',macrogruppo:'Latticini',tipologia:'Formaggio'},
-  // Latticini – Mozzarella
-  {nome:'Mozzarella fior di latte',macrogruppo:'Latticini',tipologia:'Mozzarella'},
-  {nome:'Mozzarella di bufala',macrogruppo:'Latticini',tipologia:'Mozzarella'},
-  {nome:'Mozzarella per pizza',macrogruppo:'Latticini',tipologia:'Mozzarella'},
-  // Latticini – Burro/Panna/Ricotta
-  {nome:'Burro',macrogruppo:'Latticini',tipologia:'Burro'},
-  {nome:'Panna fresca',macrogruppo:'Latticini',tipologia:'Panna'},
-  {nome:'Panna da cucina',macrogruppo:'Latticini',tipologia:'Panna'},
-  {nome:'Ricotta',macrogruppo:'Latticini',tipologia:'Ricotta'},
-  // Uova
-  {nome:'Uova fresche',macrogruppo:'Uova',tipologia:'Uova fresche'},
-  {nome:'Uova biologiche',macrogruppo:'Uova',tipologia:'Uova fresche'},
-  // Carne
-  {nome:'Petto di pollo',macrogruppo:'Carne',tipologia:'Pollo'},
-  {nome:'Cosce di pollo',macrogruppo:'Carne',tipologia:'Pollo'},
-  {nome:'Pollo intero',macrogruppo:'Carne',tipologia:'Pollo'},
-  {nome:'Macinato di manzo',macrogruppo:'Carne',tipologia:'Manzo'},
-  {nome:'Bistecca di manzo',macrogruppo:'Carne',tipologia:'Manzo'},
-  {nome:'Roast beef',macrogruppo:'Carne',tipologia:'Manzo'},
-  {nome:'Fesa di tacchino',macrogruppo:'Carne',tipologia:'Tacchino'},
-  {nome:'Costine di maiale',macrogruppo:'Carne',tipologia:'Maiale'},
-  {nome:'Lonza di maiale',macrogruppo:'Carne',tipologia:'Maiale'},
-  {nome:'Prosciutto cotto',macrogruppo:'Carne',tipologia:'Salumi'},
-  {nome:'Prosciutto crudo',macrogruppo:'Carne',tipologia:'Salumi'},
-  {nome:'Mortadella',macrogruppo:'Carne',tipologia:'Salumi'},
-  {nome:'Salame',macrogruppo:'Carne',tipologia:'Salumi'},
-  {nome:'Bresaola',macrogruppo:'Carne',tipologia:'Salumi'},
-  {nome:'Wurstel',macrogruppo:'Carne',tipologia:'Wurstel'},
-  // Pesce
-  {nome:'Salmone fresco',macrogruppo:'Pesce',tipologia:'Salmone'},
-  {nome:'Salmone affumicato',macrogruppo:'Pesce',tipologia:'Salmone'},
-  {nome:'Tonno in scatola',macrogruppo:'Pesce',tipologia:'Tonno'},
-  {nome:'Merluzzo',macrogruppo:'Pesce',tipologia:'Pesce fresco'},
-  {nome:'Orata',macrogruppo:'Pesce',tipologia:'Pesce fresco'},
-  {nome:'Branzino',macrogruppo:'Pesce',tipologia:'Pesce fresco'},
-  {nome:'Gamberi',macrogruppo:'Pesce',tipologia:'Frutti di mare'},
-  {nome:'Cozze',macrogruppo:'Pesce',tipologia:'Frutti di mare'},
-  {nome:'Vongole',macrogruppo:'Pesce',tipologia:'Frutti di mare'},
-  {nome:'Filetti di merluzzo surgelati',macrogruppo:'Pesce',tipologia:'Pesce surgelato'},
-  // Pasta e Riso
-  {nome:'Spaghetti',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
-  {nome:'Penne rigate',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
-  {nome:'Fusilli',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
-  {nome:'Rigatoni',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
-  {nome:'Farfalle',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
-  {nome:'Tagliatelle',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
-  {nome:'Lasagne',macrogruppo:'Pasta e Riso',tipologia:'Pasta'},
-  {nome:'Riso Carnaroli',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
-  {nome:'Riso Arborio',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
-  {nome:'Riso Basmati',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
-  {nome:'Riso integrale',macrogruppo:'Pasta e Riso',tipologia:'Riso'},
-  {nome:'Gnocchi di patate',macrogruppo:'Pasta e Riso',tipologia:'Gnocchi'},
-  {nome:'Cous cous',macrogruppo:'Pasta e Riso',tipologia:'Cous Cous'},
-  {nome:'Polenta',macrogruppo:'Pasta e Riso',tipologia:'Polenta'},
-  // Pane e Forno
-  {nome:'Pane di casa',macrogruppo:'Pane e Forno',tipologia:'Pane'},
-  {nome:'Pane integrale',macrogruppo:'Pane e Forno',tipologia:'Pane'},
-  {nome:'Pancarré',macrogruppo:'Pane e Forno',tipologia:'Pane'},
-  {nome:'Grissini',macrogruppo:'Pane e Forno',tipologia:'Grissini'},
-  {nome:'Crackers',macrogruppo:'Pane e Forno',tipologia:'Crackers'},
-  {nome:'Fette biscottate',macrogruppo:'Pane e Forno',tipologia:'Fette biscottate'},
-  {nome:'Cereali da colazione',macrogruppo:'Pane e Forno',tipologia:'Cereali'},
-  {nome:'Müesli',macrogruppo:'Pane e Forno',tipologia:'Cereali'},
-  {nome:'Fiocchi d\'avena',macrogruppo:'Pane e Forno',tipologia:'Cereali'},
-  // Verdura
-  {nome:'Pomodori',macrogruppo:'Verdura',tipologia:'Pomodori'},
-  {nome:'Pomodorini ciliegino',macrogruppo:'Verdura',tipologia:'Pomodori'},
-  {nome:'Insalata mista',macrogruppo:'Verdura',tipologia:'Insalata'},
-  {nome:'Rucola',macrogruppo:'Verdura',tipologia:'Insalata'},
-  {nome:'Spinaci',macrogruppo:'Verdura',tipologia:'Spinaci'},
-  {nome:'Zucchine',macrogruppo:'Verdura',tipologia:'Zucchine'},
-  {nome:'Melanzane',macrogruppo:'Verdura',tipologia:'Zucchine'},
-  {nome:'Peperoni',macrogruppo:'Verdura',tipologia:'Zucchine'},
-  {nome:'Carote',macrogruppo:'Verdura',tipologia:'Carote'},
-  {nome:'Patate',macrogruppo:'Verdura',tipologia:'Patate'},
-  {nome:'Cipolla',macrogruppo:'Verdura',tipologia:'Cipolla'},
-  {nome:'Aglio',macrogruppo:'Verdura',tipologia:'Cipolla'},
-  {nome:'Funghi champignon',macrogruppo:'Verdura',tipologia:'Funghi'},
-  {nome:'Funghi porcini',macrogruppo:'Verdura',tipologia:'Funghi'},
-  {nome:'Broccoli',macrogruppo:'Verdura',tipologia:'Carote'},
-  {nome:'Cavolfiore',macrogruppo:'Verdura',tipologia:'Carote'},
-  {nome:'Finocchi',macrogruppo:'Verdura',tipologia:'Carote'},
-  // Frutta
-  {nome:'Mele',macrogruppo:'Frutta',tipologia:'Mele'},
-  {nome:'Pere',macrogruppo:'Frutta',tipologia:'Pere'},
-  {nome:'Arance',macrogruppo:'Frutta',tipologia:'Arance'},
-  {nome:'Limoni',macrogruppo:'Frutta',tipologia:'Arance'},
-  {nome:'Banane',macrogruppo:'Frutta',tipologia:'Banane'},
-  {nome:'Fragole',macrogruppo:'Frutta',tipologia:'Frutti di bosco'},
-  {nome:'Mirtilli',macrogruppo:'Frutta',tipologia:'Frutti di bosco'},
-  {nome:'Lamponi',macrogruppo:'Frutta',tipologia:'Frutti di bosco'},
-  {nome:'Uva',macrogruppo:'Frutta',tipologia:'Uva'},
-  {nome:'Kiwi',macrogruppo:'Frutta',tipologia:'Kiwi'},
-  {nome:'Pesche',macrogruppo:'Frutta',tipologia:'Pere'},
-  {nome:'Albicocche',macrogruppo:'Frutta',tipologia:'Pere'},
-  // Legumi
-  {nome:'Fagioli borlotti',macrogruppo:'Legumi',tipologia:'Fagioli'},
-  {nome:'Fagioli cannellini',macrogruppo:'Legumi',tipologia:'Fagioli'},
-  {nome:'Ceci',macrogruppo:'Legumi',tipologia:'Ceci'},
-  {nome:'Lenticchie',macrogruppo:'Legumi',tipologia:'Lenticchie'},
-  {nome:'Piselli',macrogruppo:'Legumi',tipologia:'Piselli'},
-  // Conserve
-  {nome:'Passata di pomodoro',macrogruppo:'Conserve',tipologia:'Passata'},
-  {nome:'Pelati',macrogruppo:'Conserve',tipologia:'Pelati'},
-  {nome:'Polpa di pomodoro',macrogruppo:'Conserve',tipologia:'Passata'},
-  {nome:'Olive verdi',macrogruppo:'Conserve',tipologia:'Olive'},
-  {nome:'Olive nere',macrogruppo:'Conserve',tipologia:'Olive'},
-  {nome:'Capperi',macrogruppo:'Conserve',tipologia:'Sottoli'},
-  {nome:'Sottaceti',macrogruppo:'Conserve',tipologia:'Sottoli'},
-  {nome:'Fagioli in scatola',macrogruppo:'Conserve',tipologia:'Legumi in scatola'},
-  {nome:'Ceci in scatola',macrogruppo:'Conserve',tipologia:'Legumi in scatola'},
-  {nome:'Lenticchie in scatola',macrogruppo:'Conserve',tipologia:'Legumi in scatola'},
-  // Condimenti
-  {nome:'Olio extravergine d\'oliva',macrogruppo:'Condimenti',tipologia:'Olio'},
-  {nome:'Olio di semi',macrogruppo:'Condimenti',tipologia:'Olio'},
-  {nome:'Aceto di vino',macrogruppo:'Condimenti',tipologia:'Aceto'},
-  {nome:'Aceto balsamico',macrogruppo:'Condimenti',tipologia:'Aceto'},
-  {nome:'Sale fino',macrogruppo:'Condimenti',tipologia:'Sale'},
-  {nome:'Sale grosso',macrogruppo:'Condimenti',tipologia:'Sale'},
-  {nome:'Pepe nero',macrogruppo:'Condimenti',tipologia:'Pepe'},
-  {nome:'Origano',macrogruppo:'Condimenti',tipologia:'Spezie'},
-  {nome:'Basilico',macrogruppo:'Condimenti',tipologia:'Spezie'},
-  {nome:'Rosmarino',macrogruppo:'Condimenti',tipologia:'Spezie'},
-  {nome:'Ketchup',macrogruppo:'Condimenti',tipologia:'Salse'},
-  {nome:'Maionese',macrogruppo:'Condimenti',tipologia:'Salse'},
-  {nome:'Senape',macrogruppo:'Condimenti',tipologia:'Salse'},
-  // Dolci
-  {nome:'Biscotti frollini',macrogruppo:'Dolci',tipologia:'Biscotti'},
-  {nome:'Biscotti integrali',macrogruppo:'Dolci',tipologia:'Biscotti'},
-  {nome:'Cioccolato fondente',macrogruppo:'Dolci',tipologia:'Cioccolato'},
-  {nome:'Cioccolato al latte',macrogruppo:'Dolci',tipologia:'Cioccolato'},
-  {nome:'Nutella',macrogruppo:'Dolci',tipologia:'Marmellata'},
-  {nome:'Marmellata di fragole',macrogruppo:'Dolci',tipologia:'Marmellata'},
-  {nome:'Miele',macrogruppo:'Dolci',tipologia:'Miele'},
-  {nome:'Merendine',macrogruppo:'Dolci',tipologia:'Merendine'},
-  {nome:'Zucchero',macrogruppo:'Dolci',tipologia:'Biscotti'},
-  {nome:'Farina 00',macrogruppo:'Dolci',tipologia:'Biscotti'},
-  // Bevande
-  {nome:'Acqua naturale',macrogruppo:'Bevande',tipologia:'Acqua'},
-  {nome:'Acqua frizzante',macrogruppo:'Bevande',tipologia:'Acqua'},
-  {nome:'Succo di frutta',macrogruppo:'Bevande',tipologia:'Succhi'},
-  {nome:'Coca-Cola',macrogruppo:'Bevande',tipologia:'Bibite'},
-  {nome:'Birra',macrogruppo:'Bevande',tipologia:'Birra'},
-  {nome:'Vino rosso',macrogruppo:'Bevande',tipologia:'Vino'},
-  {nome:'Vino bianco',macrogruppo:'Bevande',tipologia:'Vino'},
-  {nome:'Caffè in grani',macrogruppo:'Bevande',tipologia:'Caffè'},
-  {nome:'Caffè macinato',macrogruppo:'Bevande',tipologia:'Caffè'},
-  {nome:'Caffè in cialde',macrogruppo:'Bevande',tipologia:'Caffè'},
-  {nome:'Tè in bustine',macrogruppo:'Bevande',tipologia:'Tè'},
-  // Surgelati
-  {nome:'Piselli surgelati',macrogruppo:'Surgelati',tipologia:'Verdure surgelate'},
-  {nome:'Spinaci surgelati',macrogruppo:'Surgelati',tipologia:'Verdure surgelate'},
-  {nome:'Misto verdure surgelato',macrogruppo:'Surgelati',tipologia:'Verdure surgelate'},
-  {nome:'Pizza surgelata',macrogruppo:'Surgelati',tipologia:'Pizza surgelata'},
-  {nome:'Gelato',macrogruppo:'Surgelati',tipologia:'Gelati'},
-  {nome:'Bastoncini di pesce',macrogruppo:'Surgelati',tipologia:'Piatti pronti'},
-  // Pulizia
-  {nome:'Detersivo piatti',macrogruppo:'Pulizia',tipologia:'Detersivo piatti'},
-  {nome:'Detersivo lavatrice',macrogruppo:'Pulizia',tipologia:'Detersivo lavatrice'},
-  {nome:'Ammorbidente',macrogruppo:'Pulizia',tipologia:'Detersivo lavatrice'},
-  {nome:'Multiuso spray',macrogruppo:'Pulizia',tipologia:'Multiuso'},
-  {nome:'Detersivo bagno',macrogruppo:'Pulizia',tipologia:'Bagno'},
-  {nome:'Sacchetti spazzatura',macrogruppo:'Pulizia',tipologia:'Multiuso'},
-  {nome:'Carta da cucina',macrogruppo:'Pulizia',tipologia:'Multiuso'},
-  // Igiene
-  {nome:'Shampoo',macrogruppo:'Igiene',tipologia:'Shampoo'},
-  {nome:'Balsamo',macrogruppo:'Igiene',tipologia:'Shampoo'},
-  {nome:'Sapone liquido',macrogruppo:'Igiene',tipologia:'Sapone'},
-  {nome:'Dentifricio',macrogruppo:'Igiene',tipologia:'Dentifricio'},
-  {nome:'Carta igienica',macrogruppo:'Igiene',tipologia:'Carta igienica'},
-  {nome:'Dopobarba',macrogruppo:'Igiene',tipologia:'Sapone'},
-  {nome:'Crema idratante',macrogruppo:'Igiene',tipologia:'Sapone'},
-];
+// Il catalogo viene caricato da Supabase (tabella catalogo_prodotti).
+// L'array CATALOGO è usato solo come seed al primo login.
+const CATALOGO = [];
 
 // ── SUGGERIMENTI ──────────────────────────────────────
 function getSuggerimenti(testo, escludiInSpesa=false){
   if(!testo||testo.length<2)return[];
   const q=testo.toLowerCase().trim();
   const risultati=[];
-  const visti=new Set();
+  const vistiNome=new Set();
 
-  // 1. Prima i prodotti già in credenza (escludi quelli in spesa se richiesto)
-  const inCred=prodotti.filter(p=>!p.inSpesa);
-  inCred.forEach(p=>{
-    if(p.nome.toLowerCase().includes(q)&&!visti.has(p.nome.toLowerCase())){
-      risultati.push({nome:p.nome,macrogruppo:p.macrogruppo,tipologia:p.tipologia,mine:true});
-      visti.add(p.nome.toLowerCase());
+  // 1. Prodotti già in credenza (cerca per nome completo)
+  prodotti.filter(p=>!p.inSpesa).forEach(p=>{
+    if(p.nome.toLowerCase().includes(q)&&!vistiNome.has(p.nome.toLowerCase())){
+      risultati.push({nome:p.nome,prodotto:p.prodotto||p.nome,marchio:p.marchio||'',macrogruppo:p.macrogruppo,tipologia:p.tipologia,mine:true});
+      vistiNome.add(p.nome.toLowerCase());
     }
   });
 
-  // 2. Poi il catalogo predefinito
-  CATALOGO.forEach(c=>{
-    if(c.nome.toLowerCase().includes(q)&&!visti.has(c.nome.toLowerCase())){
-      risultati.push({...c,mine:false});
-      visti.add(c.nome.toLowerCase());
-    }
+  // 2. Catalogo Supabase — cerca per prodotto (generico) o marchio
+  // Raggruppa per prodotto e mostra prima il generico, poi i marchi
+  const perProdotto={};
+  catalogoCache.forEach(c=>{
+    const prodotto=c.prodotto||c.nome;
+    const marchio=c.marchio||'';
+    const matchProdotto=prodotto.toLowerCase().includes(q);
+    const matchMarchio=marchio.toLowerCase().includes(q);
+    const matchNome=c.nome.toLowerCase().includes(q);
+    if(!matchProdotto&&!matchMarchio&&!matchNome)return;
+    if(!perProdotto[prodotto])perProdotto[prodotto]={macrogruppo:c.macrogruppo,tipologia:c.tipologia,marchi:[]};
+    if(marchio&&!perProdotto[prodotto].marchi.includes(marchio))
+      perProdotto[prodotto].marchi.push(marchio);
   });
 
-  return risultati.slice(0,6);
+  Object.entries(perProdotto).forEach(([prodotto,info])=>{
+    // Prima voce: prodotto generico (se non già visto)
+    if(!vistiNome.has(prodotto.toLowerCase())){
+      risultati.push({nome:prodotto,prodotto,marchio:'',macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,marchi:info.marchi});
+      vistiNome.add(prodotto.toLowerCase());
+    }
+    // Poi ogni marchio come voce separata
+    info.marchi.forEach(m=>{
+      const nomeCompleto=`${prodotto} ${m}`;
+      if(!vistiNome.has(nomeCompleto.toLowerCase())){
+        risultati.push({nome:nomeCompleto,prodotto,marchio:m,macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false});
+        vistiNome.add(nomeCompleto.toLowerCase());
+      }
+    });
+  });
+
+  return risultati.slice(0,8);
 }
 
 function renderSuggerimenti(inputId, boxId, onSelect){
@@ -944,53 +984,143 @@ function renderSuggerimenti(inputId, boxId, onSelect){
 
 async function loadAll(){
   setSyncing(true);
-  const{data,error}=await sb.from('prodotti').select('*').order('nome');
+  const{data,error}=await sb.from('prodotti').select('*').eq('user_id',currentUser.id).order('nome');
   setSyncing(false);
   if(error){showToast('❌ '+error.message);return;}
-  prodotti=data||[];
+  prodotti=normalizzaProdotti(data||[]);
+  await riconciliaCategorie();
   render();
+}
+
+// Aggiorna automaticamente macrogruppo/tipologia dei prodotti che li hanno vuoti
+// usando come fonte il catalogo già caricato in memoria
+async function riconciliaCategorie(){
+  if(!catalogoCache.length)return;
+  const daAggiornare=prodotti.filter(p=>!p.macrogruppo||!p.tipologia);
+  if(!daAggiornare.length)return;
+  const aggiornati=[];
+  for(const p of daAggiornare){
+    const match=catalogoCache.find(c=>c.nome.toLowerCase()===p.nome.toLowerCase());
+    if(!match)continue;
+    let changed=false;
+    if(!p.macrogruppo&&match.macrogruppo){p.macrogruppo=match.macrogruppo;changed=true;}
+    if(!p.tipologia&&match.tipologia){p.tipologia=match.tipologia;changed=true;}
+    if(changed)aggiornati.push(p);
+  }
+  for(const p of aggiornati) await dbUpdate(p);
 }
 async function dbInsert(p){
   setSyncing(true);
-  const{data,error}=await sb.from('prodotti').insert([toDb(p)]).select().single();
+  const row={...toDb(p),user_id:currentUser.id};
+  const{data,error}=await sb.from('prodotti').insert([row]).select().single();
   setSyncing(false);
   if(error){showToast('❌ Errore salvataggio');return null;}
   return data;
 }
 async function dbUpdate(p){
   setSyncing(true);
-  const{error}=await sb.from('prodotti').update(toDb(p)).eq('id',p.id);
+  const{error}=await sb.from('prodotti').update(toDb(p)).eq('id',p.id).eq('user_id',currentUser.id);
   setSyncing(false);
   if(error)showToast('❌ Errore aggiornamento');
 }
 async function dbDelete(id){
   setSyncing(true);
-  const{error}=await sb.from('prodotti').delete().eq('id',id);
+  const{error}=await sb.from('prodotti').delete().eq('id',id).eq('user_id',currentUser.id);
   setSyncing(false);
   if(error)showToast('❌ Errore eliminazione');
 }
-async function salvaStorico(nome,prezzo,quantita,negozio,macrogruppo,tipologia,tipoOfferta='',risparmio=0){
+async function salvaStorico(nome,prezzo,quantita,negozio,macrogruppo,tipologia,marchio='',tipoOfferta='',risparmio=0){
   if(!prezzo||prezzo<=0)return;
-  await sb.from('storico_prezzi').insert([{nome,prezzo,quantita:quantita||1,negozio:negozio||'',macrogruppo:macrogruppo||'',tipologia:tipologia||'',tipo_offerta:tipoOfferta||'',risparmio:risparmio||0}]);
+  await sb.from('storico_prezzi').insert([{user_id:currentUser.id,nome,prezzo,quantita:quantita||1,negozio:negozio||'',macrogruppo:macrogruppo||'',tipologia:tipologia||'',marchio:marchio||'',tipo_offerta:tipoOfferta||'',risparmio:risparmio||0}]);
 }
 async function loadStorico(){
-  const{data}=await sb.from('storico_prezzi').select('*').order('data',{ascending:true});
+  const{data}=await sb.from('storico_prezzi').select('*').eq('user_id',currentUser.id).order('data',{ascending:true});
   storicoCache=data||[];
 }
-function toDb(p){const d={...p};delete d.id;return d;}
 
-// ── POLLING ───────────────────────────────────────────
-function startPolling(){
-  stopPolling();
-  pollTimer=setInterval(async()=>{
-    if(!currentUser)return;
-    const{data}=await sb.from('prodotti').select('*').order('nome');
-    if(!data)return;
-    const hash=JSON.stringify(data);
-    if(hash!==lastHash){lastHash=hash;prodotti=data;render();}
-  },5000);
+// ── CATALOGO SU SUPABASE ──────────────────────────────
+async function loadCatalogo(){
+  const{data,error}=await sb.from('catalogo_prodotti').select('*').order('nome');
+  if(error){console.warn('Catalogo non disponibile',error.message);catalogoCache=[];return;}
+  catalogoCache=data||[];
+  // Nessun seed automatico: il catalogo si costruisce aggiungendo prodotti
 }
-function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null;}}
+
+async function seedCatalogo(){
+  // Funzione mantenuta per compatibilità ma non fa più nulla
+  // Il catalogo viene popolato manualmente dall'utente
+}
+
+async function dbCatalogoInsert(nome,prodotto,marchio,macrogruppo,tipologia){
+  if(!currentUser)return null;
+  const{data,error}=await sb.from('catalogo_prodotti').insert([{user_id:currentUser.id,nome,prodotto:prodotto||nome,marchio:marchio||'',macrogruppo,tipologia}]).select().single();
+  if(error){showToast('❌ '+error.message);return null;}
+  catalogoCache.push(data);
+  catalogoCache.sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));
+  return data;
+}
+
+async function dbCatalogoDelete(id){
+  const{error}=await sb.from('catalogo_prodotti').delete().eq('id',id);
+  if(error){showToast('❌ '+error.message);return;}
+  catalogoCache=catalogoCache.filter(c=>c.id!==id);
+}
+function toDb(p){
+  const d={...p};
+  delete d.id;
+  // Converti scadenza da gg/mm/aaaa a yyyy-mm-dd per il DB
+  if(d.scadenza&&d.scadenza.includes('/')) d.scadenza=scadToIso(d.scadenza);
+  return d;
+}
+// gg/mm/aaaa → yyyy-mm-dd (per DB)
+function scadToIso(s){
+  if(!s)return '';
+  const p=s.split('/');
+  if(p.length!==3)return s;
+  let y=parseInt(p[2]);if(y<100)y+=2000;
+  return `${y}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+}
+// yyyy-mm-dd → gg/mm/aaaa (per display)
+function isoToScad(s){
+  if(!s)return '';
+  if(s.includes('/'))return s; // già nel formato display
+  const p=s.split('-');
+  if(p.length!==3)return s;
+  return `${p[2]}/${p[1]}/${p[0]}`;
+}
+// Dopo aver caricato dal DB, converti scadenze in formato display
+function normalizzaProdotti(lista){
+  return lista.map(p=>({...p, scadenza:isoToScad(p.scadenza||'')}));
+}
+
+// ── REALTIME ─────────────────────────────────────────
+let realtimeChannel = null;
+function startRealtime(){
+  stopRealtime();
+  realtimeChannel = sb
+    .channel('prodotti-changes')
+    .on('postgres_changes',
+      {event:'*', schema:'public', table:'prodotti', filter:`user_id=eq.${currentUser.id}`},
+      payload => {
+        const {eventType, new: newRow, old: oldRow} = payload;
+        if(eventType === 'INSERT'){
+          const row = {...newRow, scadenza: isoToScad(newRow.scadenza||'')};
+          if(!prodotti.find(p=>p.id===row.id)) prodotti.push(row);
+        } else if(eventType === 'UPDATE'){
+          const row = {...newRow, scadenza: isoToScad(newRow.scadenza||'')};
+          const idx = prodotti.findIndex(p=>p.id===row.id);
+          if(idx>=0) prodotti[idx]=row; else prodotti.push(row);
+        } else if(eventType === 'DELETE'){
+          prodotti = prodotti.filter(p=>p.id!==oldRow.id);
+        }
+        render();
+      }
+    )
+    .subscribe();
+}
+function stopRealtime(){
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
+}
 
 // ── UTILS ─────────────────────────────────────────────
 function show(id,visible){const el=document.getElementById(id);if(visible){el.classList.remove('hidden');if(el.style.flexDirection)el.style.display='flex';}else el.classList.add('hidden');}
@@ -1170,6 +1300,7 @@ function renderSpesa(lista,el){
   if(lista.length>0)html+=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
       <button class="spesa-start-btn" style="margin:0;flex:1;padding:10px" onclick="apriNegozioDialog()">🛍️ Avvia spesa al negozio</button>
+      <button class="icon-btn" onclick="esportaListaSpesa()" title="Condividi lista" style="flex-shrink:0">📤</button>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:10px">
       <button class="stat-tab ${spesaSortMode==='nome'?'active':''}" onclick="setSpesaSort('nome')">📝 Per nome</button>
@@ -1243,7 +1374,41 @@ function salvaBudget(){
   showToast(budgetMensile>0?`💰 Budget impostato: €${budgetMensile.toFixed(2)}`:'💰 Budget rimosso');
 }
 
-// ── EXPORT CSV ────────────────────────────────────────
+// ── EXPORT LISTA SPESA ────────────────────────────────
+function esportaListaSpesa(){
+  const lista=getSpesa();
+  if(lista.length===0){showToast('Lista spesa vuota');return;}
+
+  // Raggruppa per macrogruppo
+  const grouped={};
+  lista.forEach(p=>{
+    const m=p.macrogruppo||'Altro';
+    if(!grouped[m])grouped[m]=[];
+    grouped[m].push(p);
+  });
+
+  const emoji=getMacroEmoji;
+  let testo='🛒 Lista della spesa\n';
+  testo+=`${new Date().toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'})}\n`;
+  testo+='─────────────────────\n';
+
+  Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0],'it')).forEach(([macro,items])=>{
+    testo+=`\n${emoji(macro)} ${macro.toUpperCase()}\n`;
+    items.sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'})).forEach(p=>{
+      testo+=`  • ${p.nome}`;
+      if(p.quantita>1)testo+=` ×${p.quantita}`;
+      testo+='\n';
+    });
+  });
+  testo+=`\n─────────────────────\n${lista.length} prodotti`;
+
+  // Prova condivisione nativa (mobile), fallback copia negli appunti
+  if(navigator.share){
+    navigator.share({title:'Lista della spesa',text:testo}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(testo).then(()=>showToast('✓ Lista copiata negli appunti!')).catch(()=>showToast('❌ Impossibile copiare'));
+  }
+}
 async function esportaCSV(){
   showToast('⏳ Preparazione CSV…');
   await loadStorico();
@@ -1764,7 +1929,7 @@ async function fieldChange(id,field,value){
   await dbUpdate(p);
   // Se cambia il prezzo manualmente, salva nello storico
   if(field==='prezzo'&&value>0&&!p.inSpesa){
-    await salvaStorico(p.nome,value,p.quantita,p.negozio,p.macrogruppo,p.tipologia);
+    await salvaStorico(p.nome,value,p.quantita,p.negozio,p.macrogruppo,p.tipologia,p.marchio||'');
   }
 }
 function onScadInput(id,input){const fmt=fmtScad(input.value);if(fmt!==input.value)input.value=fmt;const p=prodotti.find(x=>x.id===id);if(!p)return;p.scadenza=fmt;clearTimeout(input._t);input._t=setTimeout(()=>dbUpdate(p),800);}
@@ -1777,20 +1942,93 @@ async function mandaInSpesa(id){
   }
   currentTab=1;render();showToast(`${p.nome} aggiunto alla spesa`);
 }
-async function eliminaProdotto(id){prodotti=prodotti.filter(x=>x.id!==id);render();await dbDelete(id);}
+let eliminaPendingId = null;
+function eliminaProdotto(id){
+  const p=prodotti.find(x=>x.id===id);
+  eliminaPendingId=id;
+  document.getElementById('eliminaMsg').textContent=p?`Vuoi eliminare "${p.nome}"?`:'Vuoi eliminare questo prodotto?';
+  document.getElementById('eliminaModal').classList.add('open');
+}
+async function confermaElimina(){
+  if(eliminaPendingId===null)return;
+  const id=eliminaPendingId;
+  chiudiEliminaModal();
+  prodotti=prodotti.filter(x=>x.id!==id);render();await dbDelete(id);
+}
+function chiudiEliminaModal(){document.getElementById('eliminaModal').classList.remove('open');eliminaPendingId=null;}
 async function changeSpesaQty(id,delta){const p=prodotti.find(x=>x.id===id);if(!p)return;p.quantita=Math.max(1,p.quantita+delta);render();await dbUpdate(p);}
 
 async function quickAdd(){
   const input=document.getElementById('quickAddInput');
   const nome=input.value.trim();if(!nome)return;
-  const macrogruppo=input._macro||'';
-  const tipologia=input._tipo||'';
+  let macrogruppo=input._macro||'';
+  let tipologia=input._tipo||'';
+  let prodotto=input._prodotto||nome;
+  let marchio=input._marchio||'';
+  // Se non è stato selezionato un suggerimento, cerca nel catalogo per nome esatto
+  if(!macrogruppo){
+    const inCatalogo=catalogoCache.find(c=>c.nome.toLowerCase()===nome.toLowerCase());
+    if(inCatalogo){macrogruppo=inCatalogo.macrogruppo||'';tipologia=inCatalogo.tipologia||'';prodotto=inCatalogo.prodotto||nome;marchio=inCatalogo.marchio||'';}
+  }
+  // Cerca anche tra i prodotti già in credenza
+  if(!macrogruppo){
+    const inCredenza=prodotti.find(p=>!p.inSpesa&&p.nome.toLowerCase()===nome.toLowerCase());
+    if(inCredenza){macrogruppo=inCredenza.macrogruppo||'';tipologia=inCredenza.tipologia||'';prodotto=inCredenza.prodotto||nome;marchio=inCredenza.marchio||'';}
+  }
   if(!prodotti.find(x=>x.inSpesa&&x.nome.toLowerCase()===nome.toLowerCase())){
-    const ins=await dbInsert({nome,quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0});
+    const ins=await dbInsert({nome,prodotto,marchio,quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0});
     if(ins){prodotti.push(ins);render();}
   }
-  input.value='';input._macro='';input._tipo='';
+  input.value='';input._macro='';input._tipo='';input._prodotto='';input._marchio='';
   closeQuickDropdown();
+  // Controlla se il prodotto è già nel catalogo (per nome esatto)
+  const nelCatalogo=catalogoCache.some(c=>c.nome.toLowerCase()===nome.toLowerCase());
+  if(!nelCatalogo) apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia);
+}
+
+// ── PROPOSTA AGGIUNTA AL CATALOGO ────────────────────
+let catalogoPropostaPendente=null;
+
+function apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia){
+  catalogoPropostaPendente={nome,prodotto,marchio,macrogruppo,tipologia};
+  document.getElementById('cp-nome').textContent=nome;
+  document.getElementById('cp-prodotto').value=prodotto||nome;
+  document.getElementById('cp-marchio').value=marchio||'';
+  popolaMacro('cp-macrogruppo',macrogruppo);
+  popolaTipo('cp-tipologia',macrogruppo,tipologia);
+  document.getElementById('catalogoPropostaModal').classList.add('open');
+}
+function chiudiCatalogoPropostaModal(){
+  document.getElementById('catalogoPropostaModal').classList.remove('open');
+  catalogoPropostaPendente=null;
+}
+function onCpMacroChange(){
+  popolaTipo('cp-tipologia',document.getElementById('cp-macrogruppo').value,'');
+}
+async function confermaCatalogoProposta(){
+  if(!catalogoPropostaPendente)return;
+  const nome=catalogoPropostaPendente.nome;
+  const prodotto=document.getElementById('cp-prodotto').value.trim()||nome;
+  const marchio=document.getElementById('cp-marchio').value.trim();
+  const macrogruppo=document.getElementById('cp-macrogruppo').value;
+  const tipologia=document.getElementById('cp-tipologia').value;
+  chiudiCatalogoPropostaModal();
+  setSyncing(true);
+  const result=await dbCatalogoInsert(nome,prodotto,marchio,macrogruppo,tipologia);
+  // Aggiorna anche i prodotti già in lista/credenza con lo stesso nome che hanno categoria vuota
+  if(result&&(macrogruppo||tipologia)){
+    const daAggiornare=prodotti.filter(p=>p.nome.toLowerCase()===nome.toLowerCase()&&(!p.macrogruppo||!p.tipologia));
+    for(const p of daAggiornare){
+      if(macrogruppo)p.macrogruppo=macrogruppo;
+      if(tipologia)p.tipologia=tipologia;
+      if(prodotto)p.prodotto=prodotto;
+      if(marchio)p.marchio=marchio;
+      await dbUpdate(p);
+    }
+    if(daAggiornare.length>0)render();
+  }
+  setSyncing(false);
+  if(result)showToast(`✓ "${nome}" aggiunto al catalogo`);
 }
 
 // ── ADD MODAL ─────────────────────────────────────────
@@ -1887,8 +2125,8 @@ function renderQuickDropdown(){
     <div class="ac-item${acIndex===i?' selected':''}" onmousedown="selectAcItem(${i})">
       <span style="font-size:1.1rem;flex-shrink:0">${getMacroEmoji(s.macrogruppo)}</span>
       <div class="ac-item-left">
-        <div class="ac-item-nome">${esc(s.nome)}</div>
-        <div class="ac-item-meta">${[s.macrogruppo,s.tipologia].filter(Boolean).map(x=>esc(x)).join(' › ')}</div>
+        <div class="ac-item-nome">${esc(s.prodotto||s.nome)}${s.marchio?` <span style="color:var(--text-dim);font-weight:400">· ${esc(s.marchio)}</span>`:''}</div>
+        <div class="ac-item-meta">${[s.macrogruppo,s.tipologia].filter(Boolean).map(x=>esc(x)).join(' › ')}${s.marchi&&s.marchi.length?` · <span style="color:var(--amber)">${s.marchi.length} march${s.marchi.length===1?'io':'i'}</span>`:''}</div>
       </div>
       ${s.mine?'<span class="ac-item-mine">🏠 mio</span>':''}
     </div>`).join('');
@@ -1909,9 +2147,10 @@ function onQuickKey(e){
 function selectAcItem(i){
   const s=acSugg[i];if(!s)return;
   document.getElementById('quickAddInput').value=s.nome;
-  // Salva macrogruppo e tipologia per quickAdd
   document.getElementById('quickAddInput')._macro=s.macrogruppo;
   document.getElementById('quickAddInput')._tipo=s.tipologia;
+  document.getElementById('quickAddInput')._prodotto=s.prodotto||s.nome;
+  document.getElementById('quickAddInput')._marchio=s.marchio||'';
   closeQuickDropdown();
   quickAdd();
 }
@@ -2142,7 +2381,7 @@ async function completaSpesa(){
   const comp=negozioItems.filter(x=>x.preso);
   for(const item of comp){
     const acq={...item.prodotto,negozio:negozio||item.prodotto.negozio};
-    if(acq.prezzo>0) await salvaStorico(acq.nome,acq.prezzo,acq.quantita,acq.negozio,acq.macrogruppo,acq.tipologia,acq.tipoOfferta||'',acq.risparmioOfferta||0);
+    if(acq.prezzo>0) await salvaStorico(acq.nome,acq.prezzo,acq.quantita,acq.negozio,acq.macrogruppo,acq.tipologia,acq.marchio||'',acq.tipoOfferta||'',acq.risparmioOfferta||0);
     const inCred=prodotti.find(x=>!x.inSpesa&&x.nome.toLowerCase()===acq.nome.toLowerCase());
     if(inCred){
       inCred.quantita+=acq.quantita;
