@@ -292,6 +292,8 @@
           </div>
         </div>
         <button class="icon-btn" onclick="openAddModal()">＋</button>
+        <button class="icon-btn" onclick="apriBudgetModal()" title="Budget mensile">💰</button>
+        <button class="icon-btn" onclick="esportaCSV()" title="Esporta storico CSV">⬇</button>
         <button class="icon-btn" onclick="apriGerarchiaModal()" title="Gestisci categorie">🗂️</button>
         <button class="icon-btn" onclick="doLogout()" title="Esci">🚪</button>
       </div>
@@ -434,6 +436,23 @@
   </div>
 </div>
 
+<!-- BUDGET MODAL -->
+<div class="overlay" id="budgetModal">
+  <div class="modal">
+    <h2>💰 Budget mensile</h2>
+    <p style="font-size:.88rem;color:var(--text-mid);margin-bottom:16px;line-height:1.6">Imposta un tetto di spesa mensile. Vedrai quanto ti rimane direttamente nella lista della spesa.</p>
+    <div class="field">
+      <label>Budget mensile (€)</label>
+      <input id="budget-input" type="number" min="0" step="10" placeholder="es. 400" oninput="aggiornaBudgetPreview()">
+    </div>
+    <div id="budget-preview" style="margin-top:10px;font-size:.83rem;color:var(--text-dim)"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="chiudiBudgetModal()">Annulla</button>
+      <button class="btn-primary" onclick="salvaBudget()" style="flex:1">✓ Salva</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -503,6 +522,7 @@ let prodotti = [];
 let storicoCache = [];
 let currentTab = 0;
 let sortMode = 'nome';
+let spesaSortMode = 'macrogruppo'; // 'nome' | 'macrogruppo'
 let macroFilter = 'tutti';
 let editingId = null;
 let modalQty = 1;
@@ -511,6 +531,7 @@ let currentUser = null;
 let pollTimer = null;
 let lastHash = '';
 let esauritoPendente = null;
+let budgetMensile = parseFloat(localStorage.getItem('credenza_budget')||'0')||0;
 
 // ── SETUP ──────────────────────────────────────────────
 function loadCfg(){try{const r=localStorage.getItem(CFG_KEY);return r?JSON.parse(r):null;}catch{return null;}}
@@ -563,6 +584,7 @@ function onLogin(user){
   document.getElementById('userPill').textContent=user.email.split('@')[0];
   loadGerarchia();
   loadAll();
+  loadStorico();
   startPolling();
 }
 async function doLogout(){
@@ -972,6 +994,13 @@ function parseData(s){if(!s)return null;const p=s.split('/');if(p.length!==3)ret
 function giorniAllaScadenza(s){const d=parseData(s);if(!d)return null;return Math.ceil((d-new Date())/864e5);}
 function chipScadenza(s){const n=giorniAllaScadenza(s);if(n===null)return '';if(n<0)return `<span class="chip sc-exp">⚠ Scaduto</span>`;if(n===0)return `<span class="chip sc-danger">⚠ Scade oggi</span>`;if(n<=7)return `<span class="chip sc-warn">📅 ${n}g</span>`;if(n<=30)return `<span class="chip sc-warn">📅 ${s}</span>`;return `<span class="chip sc-ok">📅 ${s}</span>`;}
 function fmtScad(v){const d=v.replace(/\D/g,'');if(d.length<=2)return d;if(d.length<=4)return d.slice(0,2)+'/'+d.slice(2);return d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4,8);}
+function fmtPeso(v){
+  const s=String(v||'').trim();
+  if(!s)return '';
+  // Se è solo un numero (intero o decimale), aggiungi 'g'
+  if(/^\d+([.,]\d+)?$/.test(s))return s+'g';
+  return s;
+}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function getCredenza(){return sorted(prodotti.filter(p=>!p.inSpesa));}
 function getSpesa(){return prodotti.filter(p=>p.inSpesa).sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));}
@@ -1009,7 +1038,7 @@ function render(){
     catF.classList.remove('hidden');renderMacroFilter();
     renderCredenza(c,content);
   }else if(currentTab===1){
-    addBar.classList.remove('hidden');ha.style.display='none';
+    addBar.classList.remove('hidden');ha.style.display='flex';
     catF.classList.add('hidden');
     renderSpesa(s,content);
   }else{
@@ -1041,7 +1070,7 @@ function renderCredenza(lista,el){
 function renderCard(p){
   const sc=p.scadenza?chipScadenza(p.scadenza):'';
   const pr=p.prezzo>0?`<span class="chip">€${p.prezzo.toFixed(2)}</span>`:'';
-  const pe=p.peso?`<span class="chip">${esc(p.peso)}</span>`:'';
+  const pe=p.peso?`<span class="chip">${esc(fmtPeso(p.peso))}</span>`:'';
   const ng=p.negozio?`<span class="chip">🏪 ${esc(p.negozio)}</span>`:'';
   const of=p.inOfferta?`<span class="chip offerta">🏷️ Offerta</span>`:'';
   const macro=p.macrogruppo?`<span class="chip cat">📂 ${esc(p.macrogruppo)}</span>`:'';
@@ -1073,7 +1102,7 @@ function renderCard(p){
         <div class="field"><label>Prezzo €</label><input type="number" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" min="0" step="0.01" placeholder="0.00" onchange="fieldChange(${p.id},'prezzo',parseFloat(this.value)||0)"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Peso</label><input value="${esc(p.peso)}" placeholder="500g" onchange="fieldChange(${p.id},'peso',this.value)"></div>
+        <div class="field"><label>Peso (es. 500g, 1kg)</label><input value="${esc(fmtPeso(p.peso))}" placeholder="500g" onchange="fieldChange(${p.id},'peso',this.value)"></div>
         <div class="field"><label>Negozio</label><input value="${esc(p.negozio)}" placeholder="Coop…" onchange="fieldChange(${p.id},'negozio',this.value)"></div>
       </div>
       <div class="field"><label>Soglia minima</label><input type="number" min="0" value="${p.soglia_minima||0}" style="max-width:100px" onchange="fieldChange(${p.id},'soglia_minima',parseInt(this.value)||0)"></div>
@@ -1108,14 +1137,125 @@ function getMacroEmoji(macro){
 
 function renderSpesa(lista,el){
   let html='';
-  if(lista.length>0)html+=`<button class="spesa-start-btn" onclick="apriNegozioDialog()">🛍️ Avvia modalità spesa al negozio</button>`;
-  if(lista.length===0)html+=`<div class="empty-state"><span class="emoji">🛒</span><p>La lista della spesa è vuota.</p></div>`;
-  else lista.forEach(p=>{
-    const macro=p.macrogruppo?`<span class="chip cat" style="font-size:.72rem">📂 ${esc(p.macrogruppo)}</span>`:'';
-    const tipo=p.tipologia?`<span class="chip" style="font-size:.72rem;background:#e0f2fe;color:#0369a1">🏷 ${esc(p.tipologia)}</span>`:'';
-    html+=`<div class="spesa-card"><span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span><div style="flex:1"><div class="spesa-nome">${esc(p.nome)}</div>${(macro||tipo)?'<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">'+macro+tipo+'</div>':''}</div><div class="spesa-qty-ctrl"><button class="spesa-qty-btn minus" ${p.quantita<=1?'disabled':''} onclick="changeSpesaQty(${p.id},-1)">−</button><span class="spesa-qty-num">${p.quantita}</span><button class="spesa-qty-btn plus" onclick="changeSpesaQty(${p.id},1)">＋</button></div><button class="btn-delete" onclick="eliminaProdotto(${p.id})">🗑</button></div>`;
-  });
+
+  // ── Budget bar ──
+  if(budgetMensile>0){
+    const oggiStr=new Date().toISOString().slice(0,10).slice(0,7); // YYYY-MM
+    const spesaMese=storicoCache.filter(r=>r.data&&r.data.slice(0,7)===oggiStr).reduce((s,r)=>s+r.prezzo*(r.quantita||1),0);
+    const pct=Math.min(100,Math.round(spesaMese/budgetMensile*100));
+    const rimasto=budgetMensile-spesaMese;
+    const col=pct>=100?'var(--red)':pct>=80?'var(--amber)':'var(--green)';
+    html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:.8rem;font-weight:700;color:var(--text-mid)">💰 BUDGET MENSILE</span>
+        <span style="font-size:.82rem;font-weight:800;color:${col}">${pct>=100?'⚠️ Superato!':rimasto>=0?`€${rimasto.toFixed(2)} rimanenti`:'Superato'}</span>
+      </div>
+      <div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${col};border-radius:4px;transition:width .4s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:.72rem;color:var(--text-dim)">
+        <span>€${spesaMese.toFixed(2)} spesi</span><span>su €${budgetMensile.toFixed(2)}</span>
+      </div>
+    </div>`;
+  }
+
+  if(lista.length>0)html+=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
+      <button class="spesa-start-btn" style="margin:0;flex:1;padding:10px" onclick="apriNegozioDialog()">🛍️ Avvia spesa al negozio</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button class="stat-tab ${spesaSortMode==='nome'?'active':''}" onclick="setSpesaSort('nome')">📝 Per nome</button>
+      <button class="stat-tab ${spesaSortMode==='macrogruppo'?'active':''}" onclick="setSpesaSort('macrogruppo')">📂 Per reparto</button>
+    </div>`;
+
+  if(lista.length===0){
+    html+=`<div class="empty-state"><span class="emoji">🛒</span><p>La lista della spesa è vuota.</p></div>`;
+  } else {
+    const sorted=[...lista];
+    if(spesaSortMode==='macrogruppo'){
+      sorted.sort((a,b)=>{
+        const ma=(a.macrogruppo||'Zzz').localeCompare(b.macrogruppo||'Zzz','it',{sensitivity:'base'});
+        if(ma!==0)return ma;
+        return a.nome.localeCompare(b.nome,'it',{sensitivity:'base'});
+      });
+      // raggruppa per macrogruppo
+      let lastMacro=null;
+      sorted.forEach(p=>{
+        const macro=p.macrogruppo||'Altro';
+        if(macro!==lastMacro){
+          html+=`<div style="display:flex;align-items:center;gap:7px;margin:${lastMacro?'14px':'2px'} 0 6px;padding:0 2px">
+            <span style="font-size:1rem">${getMacroEmoji(macro)}</span>
+            <span style="font-size:.75rem;font-weight:800;color:var(--text-mid);letter-spacing:.06em;text-transform:uppercase">${esc(macro)}</span>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>`;
+          lastMacro=macro;
+        }
+        html+=buildSpesaCard(p);
+      });
+    } else {
+      sorted.sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));
+      sorted.forEach(p=>{html+=buildSpesaCard(p);});
+    }
+  }
   el.innerHTML=html;
+}
+
+function buildSpesaCard(p){
+  const tipo=p.tipologia?`<span class="chip" style="font-size:.72rem;background:#e0f2fe;color:#0369a1">🏷 ${esc(p.tipologia)}</span>`:'';
+  return `<div class="spesa-card"><span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span><div style="flex:1"><div class="spesa-nome">${esc(p.nome)}</div>${tipo?`<div style="margin-top:3px">${tipo}</div>`:''}</div><div class="spesa-qty-ctrl"><button class="spesa-qty-btn minus" ${p.quantita<=1?'disabled':''} onclick="changeSpesaQty(${p.id},-1)">−</button><span class="spesa-qty-num">${p.quantita}</span><button class="spesa-qty-btn plus" onclick="changeSpesaQty(${p.id},1)">＋</button></div><button class="btn-delete" onclick="eliminaProdotto(${p.id})">🗑</button></div>`;
+}
+
+function setSpesaSort(m){spesaSortMode=m;render();}
+
+// ── BUDGET MENSILE ────────────────────────────────────
+function apriBudgetModal(){
+  document.getElementById('budget-input').value=budgetMensile>0?budgetMensile:'';
+  aggiornaBudgetPreview();
+  document.getElementById('budgetModal').classList.add('open');
+  setTimeout(()=>document.getElementById('budget-input').focus(),100);
+}
+function chiudiBudgetModal(){document.getElementById('budgetModal').classList.remove('open');}
+function aggiornaBudgetPreview(){
+  const val=parseFloat(document.getElementById('budget-input').value)||0;
+  const prev=document.getElementById('budget-preview');
+  if(val>0){
+    const oggiStr=new Date().toISOString().slice(0,7);
+    const spesaMese=storicoCache.filter(r=>r.data&&r.data.slice(0,7)===oggiStr).reduce((s,r)=>s+r.prezzo*(r.quantita||1),0);
+    const rimasto=val-spesaMese;
+    prev.innerHTML=`Questo mese hai già speso <strong style="color:var(--amber)">€${spesaMese.toFixed(2)}</strong> → ti rimarrebbero <strong style="color:${rimasto>=0?'var(--green)':'var(--red)'}">€${rimasto.toFixed(2)}</strong>`;
+  } else {
+    prev.innerHTML='Imposta 0 per disattivare il budget.';
+  }
+}
+function salvaBudget(){
+  budgetMensile=parseFloat(document.getElementById('budget-input').value)||0;
+  localStorage.setItem('credenza_budget',budgetMensile);
+  chiudiBudgetModal();
+  render();
+  showToast(budgetMensile>0?`💰 Budget impostato: €${budgetMensile.toFixed(2)}`:'💰 Budget rimosso');
+}
+
+// ── EXPORT CSV ────────────────────────────────────────
+async function esportaCSV(){
+  showToast('⏳ Preparazione CSV…');
+  await loadStorico();
+  if(storicoCache.length===0){showToast('Nessuno storico da esportare');return;}
+  const cols=['data','nome','prezzo','quantita','negozio','macrogruppo','tipologia'];
+  const header=cols.join(';');
+  const rows=storicoCache.map(r=>cols.map(c=>{
+    const v=r[c]??'';
+    const s=String(v).replace(/"/g,'""');
+    return s.includes(';')||s.includes('"')||s.includes('\n')?`"${s}"`:s;
+  }).join(';'));
+  const csv='\uFEFF'+header+'\n'+rows.join('\n'); // BOM per Excel italiano
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const mese=new Date().toISOString().slice(0,7);
+  a.href=url;a.download=`credenza_storico_${mese}.csv`;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},200);
+  showToast(`✓ Esportate ${rows.length} righe`);
 }
 
 // ── STATISTICHE ───────────────────────────────────────
@@ -1147,11 +1287,13 @@ async function renderStats(el){
   el.innerHTML=`
     <div id="stat-periodo-wrap"></div>
     <div id="stat-negozi-wrap"></div>
+    <div id="stat-convenienza-wrap"></div>
     <div id="stat-trend-wrap"></div>
     <div id="stat-prodotto-wrap"></div>`;
 
   renderStatPeriodo(tuttiDati);
   renderStatNegozi(tuttiDati);
+  renderStatConvenienza(tuttiDati);
   renderStatTrend(tuttiDati);
   renderStatProdotto(tuttiDati);
 }
@@ -1284,7 +1426,124 @@ function renderStatNegozi(dati){
     </div>`;
 }
 
-// ── 3. TREND PREZZI ───────────────────────────────────
+// ── 2b. DOVE CONVIENE COMPRARE ────────────────────────
+let convModoProd='prodotto'; // 'prodotto' | 'tipologia'
+let convSelProd='';
+let convSelTipo='';
+let convCachedDati=[];
+
+function renderStatConvenienza(dati){
+  convCachedDati=dati;
+  const el=document.getElementById('stat-convenienza-wrap');if(!el)return;
+
+  // Raccogli nomi prodotti e tipologie con almeno un acquisto in negozio
+  const righe=dati.filter(r=>r.negozio&&!r._manuale);
+  const nomiProd=[...new Set(righe.map(r=>r.nome))].sort();
+  const nomiTipo=[...new Set(righe.filter(r=>r.tipologia).map(r=>r.tipologia))].sort();
+
+  if(righe.length===0){
+    el.innerHTML=`<div class="stat-section"><div class="stat-empty">🏷️ Nessun acquisto con negozio registrato.<br>Completa una spesa al negozio per vedere l'analisi dei prezzi.</div></div>`;
+    return;
+  }
+
+  // Inizializza selezione default
+  if(!convSelProd||!nomiProd.includes(convSelProd))convSelProd=nomiProd[0]||'';
+  if(!convSelTipo||!nomiTipo.includes(convSelTipo))convSelTipo=nomiTipo[0]||'';
+
+  // Calcola confronto negozi per la selezione corrente
+  const html_risultato=buildConvenienzaRisultato(righe);
+
+  el.innerHTML=`
+    <div class="stat-section">
+      <h3>🏷️ Dove conviene comprare</h3>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="stat-tab ${convModoProd==='prodotto'?'active':''}" onclick="setConvModo('prodotto')">Per prodotto</button>
+        <button class="stat-tab ${convModoProd==='tipologia'?'active':''}" onclick="setConvModo('tipologia')">Per tipologia</button>
+      </div>
+      ${convModoProd==='prodotto'?`
+        <select class="prodotto-select" id="convProdSel" onchange="onConvSelChange(this.value)">
+          ${nomiProd.map(n=>`<option value="${esc(n)}" ${n===convSelProd?'selected':''}>${esc(n)}</option>`).join('')}
+        </select>`:`
+        <select class="prodotto-select" id="convTipoSel" onchange="onConvSelChange(this.value)">
+          ${nomiTipo.map(t=>`<option value="${esc(t)}" ${t===convSelTipo?'selected':''}>${esc(t)}</option>`).join('')}
+        </select>`}
+      <div id="conv-risultato">${html_risultato}</div>
+    </div>`;
+}
+
+function buildConvenienzaRisultato(righe){
+  // Filtra per selezione corrente
+  const filtered=convModoProd==='prodotto'
+    ? righe.filter(r=>r.nome===convSelProd)
+    : righe.filter(r=>r.tipologia===convSelTipo);
+
+  if(filtered.length===0)return `<div class="stat-empty">Nessun acquisto trovato per questa selezione.</div>`;
+
+  // Raggruppa per negozio
+  const perNeg={};
+  filtered.forEach(r=>{
+    if(!perNeg[r.negozio])perNeg[r.negozio]={prezzi:[],nomi:new Set()};
+    perNeg[r.negozio].prezzi.push(r.prezzo);
+    perNeg[r.negozio].nomi.add(r.nome);
+  });
+
+  const negozi=Object.entries(perNeg).map(([neg,v])=>{
+    const min=Math.min(...v.prezzi);
+    const max=Math.max(...v.prezzi);
+    const med=v.prezzi.reduce((a,b)=>a+b,0)/v.prezzi.length;
+    return {neg,min,max,med,n:v.prezzi.length,nomi:[...v.nomi]};
+  }).sort((a,b)=>a.min-b.min); // ordina per prezzo minimo
+
+  const minAssoluto=negozi[0].min;
+  const maxMin=Math.max(...negozi.map(x=>x.min));
+  const range=maxMin-minAssoluto||1;
+
+  return negozi.map((x,i)=>{
+    const isBest=i===0;
+    const risparmio=x.min-minAssoluto;
+    const pct=Math.round((x.min-minAssoluto)/range*100)||0;
+    const barW=Math.round((1-(x.min-minAssoluto)/range)*100);
+    return `<div style="margin-bottom:14px;padding:12px;background:${isBest?'var(--green-dim)':'rgba(255,255,255,.03)'};border:1px solid ${isBest?'var(--green-border)':'var(--border)'};border-radius:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:7px">
+          ${isBest?'<span style="font-size:.8rem">🏆</span>':`<span style="font-size:.8rem;color:var(--text-dim)">${i+1}°</span>`}
+          <span style="font-weight:700;font-size:.95rem;color:${isBest?'var(--green)':'var(--text)'}">${esc(x.neg)}</span>
+          ${isBest?'<span style="font-size:.68rem;font-weight:800;background:var(--green);color:#0d1117;padding:1px 7px;border-radius:99px">MIGLIOR PREZZO</span>':''}
+        </div>
+        <div style="text-align:right">
+          <span style="font-weight:800;font-size:1.05rem;color:${isBest?'var(--green)':'var(--text)'}">€${x.min.toFixed(2)}</span>
+          ${x.n>1?`<div style="font-size:.7rem;color:var(--text-dim)">min · med €${x.med.toFixed(2)} · max €${x.max.toFixed(2)}</div>`:''}
+        </div>
+      </div>
+      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:${isBest?'var(--green)':'rgba(255,255,255,.2)'};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:.72rem;color:var(--text-dim)">
+        <span>${x.n} acquist${x.n===1?'o':'i'}${convModoProd==='tipologia'?` (${x.nomi.slice(0,3).map(n=>esc(n)).join(', ')}${x.nomi.length>3?'…':''})`:''}</span>
+        ${risparmio>0?`<span style="color:var(--red)">+€${risparmio.toFixed(2)} rispetto al migliore</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setConvModo(modo){
+  convModoProd=modo;
+  loadStorico().then(()=>{
+    const oggiStr=new Date().toISOString().slice(0,10);
+    const giaNello=new Set(storicoCache.filter(r=>r.data&&r.data.slice(0,10)===oggiStr).map(r=>r.nome.toLowerCase()));
+    const extra=prodotti.filter(p=>!p.inSpesa&&p.prezzo>0&&!giaNello.has(p.nome.toLowerCase())).map(p=>({nome:p.nome,prezzo:p.prezzo,quantita:p.quantita||1,negozio:p.negozio||'',macrogruppo:p.macrogruppo||'',tipologia:p.tipologia||'',data:new Date().toISOString(),_manuale:true}));
+    renderStatConvenienza([...storicoCache,...extra]);
+  });
+}
+
+function onConvSelChange(val){
+  if(convModoProd==='prodotto')convSelProd=val;
+  else convSelTipo=val;
+  const righe=convCachedDati.filter(r=>r.negozio&&!r._manuale);
+  document.getElementById('conv-risultato').innerHTML=buildConvenienzaRisultato(righe);
+}
+
+
 function renderStatTrend(dati){
   const el=document.getElementById('stat-trend-wrap');if(!el)return;
 
@@ -1432,6 +1691,7 @@ async function aggiungiEsauritoASpesa(){
 
 async function fieldChange(id,field,value){
   const p=prodotti.find(x=>x.id===id);if(!p)return;
+  if(field==='peso')value=fmtPeso(value);
   p[field]=value;
   render();
   await dbUpdate(p);
@@ -1477,7 +1737,7 @@ function openAddModal(id){
     document.getElementById('f-nome').value=p.nome;
     document.getElementById('f-scadenza').value=p.scadenza;
     document.getElementById('f-prezzo').value=p.prezzo>0?p.prezzo.toFixed(2):'';
-    document.getElementById('f-peso').value=p.peso;
+    document.getElementById('f-peso').value=fmtPeso(p.peso);
     document.getElementById('f-negozio').value=p.negozio;
     document.getElementById('f-offerta').checked=p.inOfferta;
     document.getElementById('f-soglia').value=p.soglia_minima||0;
@@ -1505,7 +1765,7 @@ async function saveModal(){
   const nome=document.getElementById('f-nome').value.trim();if(!nome){document.getElementById('f-nome').focus();return;}
   const scadenza=fmtScad(document.getElementById('f-scadenza').value);
   const prezzo=parseFloat(document.getElementById('f-prezzo').value)||0;
-  const peso=document.getElementById('f-peso').value.trim();
+  const peso=fmtPeso(document.getElementById('f-peso').value.trim());
   const negozio=document.getElementById('f-negozio').value.trim();
   const inOfferta=document.getElementById('f-offerta').checked;
   const macrogruppo=document.getElementById('f-macrogruppo').value;
@@ -1659,7 +1919,7 @@ async function saveNegAdd(){
   if(!nome){document.getElementById('neg-f-nome').focus();return;}
   const quantita=parseInt(document.getElementById('neg-f-qty').value)||1;
   const prezzo=parseFloat(document.getElementById('neg-f-prezzo').value)||0;
-  const peso=document.getElementById('neg-f-peso').value.trim();
+  const peso=fmtPeso(document.getElementById('neg-f-peso').value.trim());
   const macrogruppo=document.getElementById('neg-f-macrogruppo').value;
   const tipologia=document.getElementById('neg-f-tipologia').value;
   const negozio=document.getElementById('negozioScreen').dataset.negozio||'';
@@ -1675,44 +1935,97 @@ async function saveNegAdd(){
 }
 
 function renderNegozio(){
-  const comp=negozioItems.filter(x=>x.preso),tot=comp.reduce((s,x)=>s+x.prodotto.prezzo*x.prodotto.quantita,0);
+  const comp=negozioItems.filter(x=>x.preso),todo=negozioItems.filter(x=>!x.preso);
+  const tot=comp.reduce((s,x)=>s+x.prodotto.prezzo*x.prodotto.quantita,0);
   const btn=document.getElementById('completaBtn');btn.disabled=comp.length===0;btn.textContent=`✓ SPESA ULTIMATA (${comp.length})`;
   const tRow=document.getElementById('totaleRow');
   if(comp.length>0){tRow.style.display='block';tRow.textContent=`${comp.length} prodotti · Totale €${tot.toFixed(2)}`;}else tRow.style.display='none';
+
   let html='';
-  negozioItems.forEach((item,i)=>{
-    const p=item.prodotto;
-    html+=`<div class="negozio-item ${item.preso?'checked':''}">
-      <div class="negozio-item-header" onclick="toggleNegozioItem(${i})">
-        <div class="check-circle">${item.preso?'✓':''}</div>
-        <span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span>
-        <div style="flex:1">
-          <span style="font-weight:700">${esc(p.nome)}</span>
-          ${p.tipologia?`<div style="font-size:.75rem;color:var(--text-mid)">${esc(p.macrogruppo||'')}${p.macrogruppo&&p.tipologia?' › ':''}${esc(p.tipologia||'')}</div>`:''}
+
+  // ── DA PRENDERE ──
+  if(todo.length>0){
+    html+=`<div style="font-size:.72rem;font-weight:800;color:var(--text-dim);letter-spacing:.07em;text-transform:uppercase;padding:4px 2px 8px">DA PRENDERE (${todo.length})</div>`;
+    negozioItems.forEach((item,i)=>{
+      if(item.preso)return;
+      const p=item.prodotto;
+      html+=`<div class="negozio-item">
+        <div class="negozio-item-header" onclick="spuntaItem(${i})">
+          <div class="check-circle"></div>
+          <span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span>
+          <div style="flex:1">
+            <span style="font-weight:700">${esc(p.nome)}</span>
+            ${p.tipologia?`<div style="font-size:.75rem;color:var(--text-mid)">${esc(p.macrogruppo||'')}${p.macrogruppo&&p.tipologia?' › ':''}${esc(p.tipologia||'')}</div>`:''}
+          </div>
+          <span style="color:var(--text-mid);font-size:.85rem">×${p.quantita}</span>
         </div>
-        <span style="color:var(--text-mid);font-size:.85rem">×${p.quantita}</span>
-      </div>
-      ${item.preso?`<div class="negozio-item-detail open">
-        <div class="field-row">
-          <div class="field"><label>Prezzo €</label><input type="number" min="0" step="0.01" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" placeholder="0.00" onchange="updateNF(${i},'prezzo',parseFloat(this.value)||0)"></div>
-          <div class="field"><label>Quantità</label><input type="number" min="1" value="${p.quantita}" onchange="updateNF(${i},'quantita',parseInt(this.value)||1)"></div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Peso</label><input value="${esc(p.peso)}" placeholder="500g" onchange="updateNF(${i},'peso',this.value)"></div>
-          <div class="field"><label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" placeholder="gg/mm/aaaa" inputmode="numeric" oninput="onNegScad(${i},this)"></div>
-        </div>
-        <div class="toggle-row">
-          <span class="toggle-label">🏷️ In offerta</span>
-          <label class="toggle"><input type="checkbox" ${p.inOfferta?'checked':''} onchange="updateNF(${i},'inOfferta',this.checked)"><span class="toggle-slider"></span></label>
-        </div>
-      </div>`:''}
+      </div>`;
+    });
+  } else if(comp.length>0){
+    html+=`<div style="text-align:center;padding:18px 0 8px;font-size:.9rem;color:var(--green);font-weight:700">✓ Tutti i prodotti nel carrello!</div>`;
+  }
+
+  // ── CARRELLO ──
+  if(comp.length>0){
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin:${todo.length>0?'18px':'4px'} 0 8px;padding:0 2px">
+      <span style="font-size:.72rem;font-weight:800;color:var(--green);letter-spacing:.07em;text-transform:uppercase">🛒 CARRELLO (${comp.length})</span>
+      <div style="flex:1;height:1px;background:var(--green-border)"></div>
+      <span style="font-size:.78rem;font-weight:800;color:var(--green)">€${tot.toFixed(2)}</span>
     </div>`;
-  });
+    negozioItems.forEach((item,i)=>{
+      if(!item.preso)return;
+      const p=item.prodotto;
+      html+=`<div class="negozio-item checked">
+        <div class="negozio-item-header" onclick="toggleDettaglioCarrello(${i})">
+          <div class="check-circle">✓</div>
+          <span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span>
+          <div style="flex:1">
+            <span style="font-weight:700">${esc(p.nome)}</span>
+            <div style="font-size:.75rem;color:var(--green);margin-top:1px">
+              ${p.prezzo>0?`€${p.prezzo.toFixed(2)} · `:''}×${p.quantita}${p.peso?' · '+esc(fmtPeso(p.peso)):''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:.7rem;color:var(--text-dim)">✎</span>
+            <button onclick="event.stopPropagation();rimuoviDalCarrello(${i})" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:var(--text-dim);padding:2px 4px" title="Rimetti nella lista">↩</button>
+          </div>
+        </div>
+        <div class="negozio-item-detail" id="dettaglio-${i}">
+          <div class="field-row">
+            <div class="field"><label>Prezzo €</label><input type="number" min="0" step="0.01" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" placeholder="0.00" onchange="updateNF(${i},'prezzo',parseFloat(this.value)||0)"></div>
+            <div class="field"><label>Quantità</label><input type="number" min="1" value="${p.quantita}" onchange="updateNF(${i},'quantita',parseInt(this.value)||1)"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Peso (es. 500g, 1kg)</label><input value="${esc(fmtPeso(p.peso))}" placeholder="500g" onchange="updateNF(${i},'peso',this.value)"></div>
+            <div class="field"><label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" placeholder="gg/mm/aaaa" inputmode="numeric" oninput="onNegScad(${i},this)"></div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">🏷️ In offerta</span>
+            <label class="toggle"><input type="checkbox" ${p.inOfferta?'checked':''} onchange="updateNF(${i},'inOfferta',this.checked)"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
   document.getElementById('negozioContent').innerHTML=html;
 }
 
-function toggleNegozioItem(i){negozioItems[i].preso=!negozioItems[i].preso;renderNegozio();}
-function updateNF(i,f,v){negozioItems[i].prodotto[f]=v;renderNegozio();}
+function spuntaItem(i){
+  negozioItems[i].preso=true;
+  renderNegozio();
+  // Apri automaticamente il dettaglio per compilare prezzo ecc.
+  const det=document.getElementById(`dettaglio-${i}`);
+  if(det){det.classList.add('open');det.scrollIntoView({behavior:'smooth',block:'nearest'});}
+}
+
+function rimuoviDalCarrello(i){negozioItems[i].preso=false;renderNegozio();}
+
+function toggleDettaglioCarrello(i){
+  const det=document.getElementById(`dettaglio-${i}`);
+  if(det)det.classList.toggle('open');
+}
+function updateNF(i,f,v){if(f==='peso')v=fmtPeso(v);negozioItems[i].prodotto[f]=v;renderNegozio();}
 function onNegScad(i,input){input.value=fmtScad(input.value);negozioItems[i].prodotto.scadenza=input.value;}
 
 async function completaSpesa(){
