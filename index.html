@@ -239,6 +239,9 @@
   .loading{display:flex;align-items:center;justify-content:center;padding:52px;}
   .spinner{width:36px;height:36px;border:2.5px solid rgba(52,211,153,.15);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .offerta-chip{padding:5px 11px;border-radius:20px;border:1px solid var(--border-mid);background:rgba(255,255,255,.04);font-family:'Bricolage Grotesque',sans-serif;font-size:.78rem;font-weight:700;color:var(--text-dim);cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .offerta-chip:hover{background:var(--amber-dim);border-color:var(--amber-border);color:var(--amber);}
+  .offerta-chip.active{background:var(--amber-dim);border-color:var(--amber-border);color:var(--amber);}
   .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--bg3);border:1px solid var(--green-border);color:var(--green);border-radius:12px;padding:10px 20px;font-size:.85rem;font-weight:700;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 16px rgba(52,211,153,.15);}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
@@ -532,6 +535,11 @@ let pollTimer = null;
 let lastHash = '';
 let esauritoPendente = null;
 let budgetMensile = parseFloat(localStorage.getItem('credenza_budget')||'0')||0;
+
+const TIPI_OFFERTA = [
+  {id:'sconto_pct', label:'% Sconto %'},
+  {id:'multi',      label:'🔁 3×2 / Multi'},
+];
 
 // ── SETUP ──────────────────────────────────────────────
 function loadCfg(){try{const r=localStorage.getItem(CFG_KEY);return r?JSON.parse(r):null;}catch{return null;}}
@@ -961,9 +969,9 @@ async function dbDelete(id){
   setSyncing(false);
   if(error)showToast('❌ Errore eliminazione');
 }
-async function salvaStorico(nome,prezzo,quantita,negozio,macrogruppo,tipologia){
+async function salvaStorico(nome,prezzo,quantita,negozio,macrogruppo,tipologia,tipoOfferta='',risparmio=0){
   if(!prezzo||prezzo<=0)return;
-  await sb.from('storico_prezzi').insert([{nome,prezzo,quantita:quantita||1,negozio:negozio||'',macrogruppo:macrogruppo||'',tipologia:tipologia||''}]);
+  await sb.from('storico_prezzi').insert([{nome,prezzo,quantita:quantita||1,negozio:negozio||'',macrogruppo:macrogruppo||'',tipologia:tipologia||'',tipo_offerta:tipoOfferta||'',risparmio:risparmio||0}]);
 }
 async function loadStorico(){
   const{data}=await sb.from('storico_prezzi').select('*').order('data',{ascending:true});
@@ -1288,12 +1296,14 @@ async function renderStats(el){
     <div id="stat-periodo-wrap"></div>
     <div id="stat-negozi-wrap"></div>
     <div id="stat-convenienza-wrap"></div>
+    <div id="stat-offerte-wrap"></div>
     <div id="stat-trend-wrap"></div>
     <div id="stat-prodotto-wrap"></div>`;
 
   renderStatPeriodo(tuttiDati);
   renderStatNegozi(tuttiDati);
   renderStatConvenienza(tuttiDati);
+  renderStatOfferte(tuttiDati);
   renderStatTrend(tuttiDati);
   renderStatProdotto(tuttiDati);
 }
@@ -1543,6 +1553,63 @@ function onConvSelChange(val){
   document.getElementById('conv-risultato').innerHTML=buildConvenienzaRisultato(righe);
 }
 
+
+// ── STATISTICHE OFFERTE ────────────────────────────────
+function renderStatOfferte(dati){
+  const el=document.getElementById('stat-offerte-wrap');if(!el)return;
+  const righeOfferta=dati.filter(r=>!r._manuale&&r.tipo_offerta);
+
+  if(righeOfferta.length===0){
+    el.innerHTML=`<div class="stat-section"><h3>🏷️ Offerte</h3><div class="stat-empty">Nessun acquisto in offerta registrato ancora.<br>Seleziona il tipo di offerta durante la spesa al negozio.</div></div>`;
+    return;
+  }
+
+  // Risparmio medio (% salvate)
+  const righeConRisparmio=righeOfferta.filter(r=>r.risparmio>0);
+  const risparmioMedio=righeConRisparmio.length>0?righeConRisparmio.reduce((s,r)=>s+r.risparmio,0)/righeConRisparmio.length:0;
+
+  // Conteggio per tipo
+  const perTipo={};
+  righeOfferta.forEach(r=>{
+    const label=TIPI_OFFERTA.find(t=>t.id===r.tipo_offerta)?.label||r.tipo_offerta;
+    if(!perTipo[label])perTipo[label]=0;
+    perTipo[label]++;
+  });
+  const tipiEntries=Object.entries(perTipo).sort((a,b)=>b[1]-a[1]);
+
+  // Negozio con più offerte
+  const perNeg={};
+  righeOfferta.forEach(r=>{if(r.negozio){if(!perNeg[r.negozio])perNeg[r.negozio]=0;perNeg[r.negozio]++;}});
+  const topNeg=Object.entries(perNeg).sort((a,b)=>b[1]-a[1])[0];
+
+  // Prodotti più spesso in offerta
+  const perProd={};
+  righeOfferta.forEach(r=>{if(!perProd[r.nome])perProd[r.nome]=0;perProd[r.nome]++;});
+  const topProd=Object.entries(perProd).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  el.innerHTML=`
+    <div class="stat-section">
+      <h3>🏷️ Offerte</h3>
+      <div class="kpi-row">
+        <div class="kpi amber"><div class="kpi-val">${righeOfferta.length}</div><div class="kpi-label">Acquisti in offerta</div></div>
+        ${risparmioMedio>0?`<div class="kpi"><div class="kpi-val">−${risparmioMedio.toFixed(0)}%</div><div class="kpi-label">Risparmio medio</div></div>`:''}
+      </div>
+      ${topNeg?`<div style="background:var(--amber-dim);border:1px solid var(--amber-border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:.88rem;font-weight:600;color:var(--amber)">🏆 Più offerte trovate da: <strong>${esc(topNeg[0])}</strong> — ${topNeg[1]} acquist${topNeg[1]===1?'o':'i'}</div>`:''}
+      <div style="font-size:.8rem;font-weight:700;color:var(--text-mid);margin-bottom:8px">Per tipo di offerta</div>
+      ${tipiEntries.map(([label,n])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:.88rem">${esc(label)}</span>
+          <span style="font-weight:800;color:var(--amber)">${n}×</span>
+        </div>`).join('')}
+      ${topProd.length>0?`
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-mid);margin:14px 0 8px">Prodotti più spesso in offerta</div>
+        ${topProd.map(([nome,n])=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:.88rem;font-weight:600">${esc(nome)}</span>
+            <span style="font-size:.78rem;color:var(--text-dim)">${n} volt${n===1?'a':'e'}</span>
+          </div>`).join('')}`:''}
+    </div>`;
+}
 
 function renderStatTrend(dati){
   const el=document.getElementById('stat-trend-wrap');if(!el)return;
@@ -1975,12 +2042,24 @@ function renderNegozio(){
     negozioItems.forEach((item,i)=>{
       if(!item.preso)return;
       const p=item.prodotto;
+      // Calcola risparmio vs media storica
+      const storicoNome=storicoCache.filter(r=>r.nome.toLowerCase()===p.nome.toLowerCase()&&r.prezzo>0);
+      const mediaStorica=storicoNome.length>0?storicoNome.reduce((s,r)=>s+r.prezzo,0)/storicoNome.length:0;
+      const risparmioAuto=(mediaStorica>0&&p.prezzo>0&&p.prezzo<mediaStorica)?Math.round((1-p.prezzo/mediaStorica)*100):0;
+      // Badge offerta
+      const tipoOfferta=p.tipoOfferta||'';
+      const offertaLabel=tipoOfferta?TIPI_OFFERTA.find(t=>t.id===tipoOfferta)?.label||tipoOfferta:'';
+      const offertaBadge=tipoOfferta?`<span style="font-size:.65rem;font-weight:800;background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-border);border-radius:5px;padding:1px 6px;margin-left:4px">${offertaLabel}${risparmioAuto>0?' −'+risparmioAuto+'%':''}</span>`
+        :(risparmioAuto>=10?`<span style="font-size:.65rem;font-weight:800;background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-border);border-radius:5px;padding:1px 6px;margin-left:4px">🏷️ −${risparmioAuto}% vs media</span>`:'');
+
       html+=`<div class="negozio-item checked">
         <div class="negozio-item-header" onclick="toggleDettaglioCarrello(${i})">
           <div class="check-circle">✓</div>
           <span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span>
-          <div style="flex:1">
-            <span style="font-weight:700">${esc(p.nome)}</span>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">
+              <span style="font-weight:700">${esc(p.nome)}</span>${offertaBadge}
+            </div>
             <div style="font-size:.75rem;color:var(--green);margin-top:1px">
               ${p.prezzo>0?`€${p.prezzo.toFixed(2)} · `:''}×${p.quantita}${p.peso?' · '+esc(fmtPeso(p.peso)):''}
             </div>
@@ -1999,9 +2078,15 @@ function renderNegozio(){
             <div class="field"><label>Peso (es. 500g, 1kg)</label><input value="${esc(fmtPeso(p.peso))}" placeholder="500g" onchange="updateNF(${i},'peso',this.value)"></div>
             <div class="field"><label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" placeholder="gg/mm/aaaa" inputmode="numeric" oninput="onNegScad(${i},this)"></div>
           </div>
-          <div class="toggle-row">
-            <span class="toggle-label">🏷️ In offerta</span>
-            <label class="toggle"><input type="checkbox" ${p.inOfferta?'checked':''} onchange="updateNF(${i},'inOfferta',this.checked)"><span class="toggle-slider"></span></label>
+          <div class="field" style="margin-top:10px">
+            <label>🏷️ Tipo offerta <span style="font-weight:400;text-transform:none;letter-spacing:0">(opzionale)</span></label>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+              <button class="offerta-chip ${!tipoOfferta?'active':''}" onclick="setTipoOfferta(${i},'')">Nessuna</button>
+              ${TIPI_OFFERTA.map(t=>`<button class="offerta-chip ${tipoOfferta===t.id?'active':''}" onclick="setTipoOfferta(${i},'${t.id}')">${t.label}</button>`).join('')}
+            </div>
+            ${tipoOfferta==='sconto_pct'?`<div class="field" style="margin-top:8px"><label>Sconto %</label><input type="number" min="1" max="99" value="${p.scontoPct||''}" placeholder="es. 30" style="max-width:100px" onchange="updateNF(${i},'scontoPct',parseInt(this.value)||0)"></div>`:''}
+            ${tipoOfferta==='multi'?`<div class="field" style="margin-top:8px"><label>Formula (es. 3×2)</label><input value="${esc(p.offertaFormula||'')}" placeholder="3×2, 2×1…" style="max-width:120px" onchange="updateNF(${i},'offertaFormula',this.value)"></div>`:''}
+            ${mediaStorica>0&&p.prezzo>0?`<div style="margin-top:8px;font-size:.78rem;color:var(--text-dim)">Media storica: <strong style="color:${p.prezzo<mediaStorica?'var(--green)':'var(--amber)'}">€${mediaStorica.toFixed(2)}</strong>${risparmioAuto>0?` · stai risparmiando <strong style="color:var(--green)">−${risparmioAuto}%</strong>`:` · +${Math.round((p.prezzo/mediaStorica-1)*100)}% rispetto alla media`}</div>`:''}
           </div>
         </div>
       </div>`;
@@ -2025,7 +2110,31 @@ function toggleDettaglioCarrello(i){
   const det=document.getElementById(`dettaglio-${i}`);
   if(det)det.classList.toggle('open');
 }
-function updateNF(i,f,v){if(f==='peso')v=fmtPeso(v);negozioItems[i].prodotto[f]=v;renderNegozio();}
+function updateNF(i,f,v){
+  if(f==='peso')v=fmtPeso(v);
+  negozioItems[i].prodotto[f]=v;
+  // Se cambia il prezzo aggiorna anche inOfferta e risparmio
+  if(f==='prezzo'){
+    const p=negozioItems[i].prodotto;
+    const storicoNome=storicoCache.filter(r=>r.nome.toLowerCase()===p.nome.toLowerCase()&&r.prezzo>0);
+    const media=storicoNome.length>0?storicoNome.reduce((s,r)=>s+r.prezzo,0)/storicoNome.length:0;
+    p.risparmioOfferta=media>0&&v>0&&v<media?Math.round((1-v/media)*100):0;
+    if(p.risparmioOfferta>=10&&!p.tipoOfferta)p.inOfferta=true;
+    else if(!p.tipoOfferta)p.inOfferta=false;
+  }
+  // Salva quali panel sono aperti per riaprirli dopo il render
+  const aperti=new Set([...document.querySelectorAll('.negozio-item-detail.open')].map(el=>el.id));
+  renderNegozio();
+  aperti.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('open');});
+}
+
+function setTipoOfferta(i,tipo){
+  negozioItems[i].prodotto.tipoOfferta=tipo;
+  negozioItems[i].prodotto.inOfferta=!!tipo;
+  const aperti=new Set([...document.querySelectorAll('.negozio-item-detail.open')].map(el=>el.id));
+  renderNegozio();
+  aperti.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('open');});
+}
 function onNegScad(i,input){input.value=fmtScad(input.value);negozioItems[i].prodotto.scadenza=input.value;}
 
 async function completaSpesa(){
@@ -2033,7 +2142,7 @@ async function completaSpesa(){
   const comp=negozioItems.filter(x=>x.preso);
   for(const item of comp){
     const acq={...item.prodotto,negozio:negozio||item.prodotto.negozio};
-    if(acq.prezzo>0) await salvaStorico(acq.nome,acq.prezzo,acq.quantita,acq.negozio,acq.macrogruppo,acq.tipologia);
+    if(acq.prezzo>0) await salvaStorico(acq.nome,acq.prezzo,acq.quantita,acq.negozio,acq.macrogruppo,acq.tipologia,acq.tipoOfferta||'',acq.risparmioOfferta||0);
     const inCred=prodotti.find(x=>!x.inSpesa&&x.nome.toLowerCase()===acq.nome.toLowerCase());
     if(inCred){
       inCred.quantita+=acq.quantita;
@@ -2044,11 +2153,12 @@ async function completaSpesa(){
       if(acq.macrogruppo)inCred.macrogruppo=acq.macrogruppo;
       if(acq.tipologia)inCred.tipologia=acq.tipologia;
       inCred.inOfferta=acq.inOfferta;
+      inCred.tipoOfferta=acq.tipoOfferta||'';
       await dbUpdate(inCred);await dbDelete(acq.id);
       prodotti=prodotti.filter(x=>x.id!==acq.id);
     }else{
       const p=prodotti.find(x=>x.id===acq.id);
-      if(p){Object.assign(p,{inSpesa:false,negozio:acq.negozio,scadenza:acq.scadenza,prezzo:acq.prezzo,peso:acq.peso,inOfferta:acq.inOfferta,macrogruppo:acq.macrogruppo,tipologia:acq.tipologia});await dbUpdate(p);}
+      if(p){Object.assign(p,{inSpesa:false,negozio:acq.negozio,scadenza:acq.scadenza,prezzo:acq.prezzo,peso:acq.peso,inOfferta:acq.inOfferta,tipoOfferta:acq.tipoOfferta||'',macrogruppo:acq.macrogruppo,tipologia:acq.tipologia});await dbUpdate(p);}
     }
   }
   closeNegozioScreen();currentTab=0;render();
