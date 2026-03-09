@@ -357,12 +357,12 @@
     <div class="cat-filter hidden" id="catFilter"></div>
     <div class="content" id="mainContent"><div class="loading"><div class="spinner"></div></div></div>
     <div class="add-bar hidden" id="addBar">
-    <div class="autocomplete-wrap">
-      <input class="add-input" id="quickAddInput" placeholder="Nome prodotto…"
-        oninput="onQuickInput()" onkeydown="onQuickKey(event)"
-        autocomplete="off">
-      <div class="autocomplete-dropdown" id="quickDropdown"></div>
-    </div>
+      <div class="autocomplete-wrap">
+        <input class="add-input" id="quickAddInput" placeholder="Prodotto o categoria…"
+          oninput="onQuickInput()" onkeydown="onQuickKey(event)"
+          autocomplete="off">
+        <div class="autocomplete-dropdown" id="quickDropdown"></div>
+      </div>
       <button class="btn-primary" onclick="quickAdd()">＋ Aggiungi</button>
     </div>
   </div>
@@ -557,6 +557,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
 
 <script>
 const SQL_SETUP = `-- ══════════════════════════════════════════════════════
@@ -971,13 +972,12 @@ function getSuggerimenti(testo, escludiInSpesa=false){
   // 1. Prodotti già in credenza (cerca per nome completo)
   prodotti.filter(p=>!p.inSpesa).forEach(p=>{
     if(p.nome.toLowerCase().includes(q)&&!vistiNome.has(p.nome.toLowerCase())){
-      risultati.push({nome:p.nome,prodotto:p.prodotto||p.nome,marchio:p.marchio||'',macrogruppo:p.macrogruppo,tipologia:p.tipologia,mine:true});
+      risultati.push({nome:p.nome,prodotto:p.prodotto||p.nome,marchio:p.marchio||'',macrogruppo:p.macrogruppo,tipologia:p.tipologia,mine:true,_tipo:'prodotto'});
       vistiNome.add(p.nome.toLowerCase());
     }
   });
 
   // 2. Catalogo Supabase — cerca per prodotto (generico) o marchio
-  // Raggruppa per prodotto e mostra prima il generico, poi i marchi
   const perProdotto={};
   catalogoCache.forEach(c=>{
     const prodotto=c.prodotto||c.nome;
@@ -992,22 +992,39 @@ function getSuggerimenti(testo, escludiInSpesa=false){
   });
 
   Object.entries(perProdotto).forEach(([prodotto,info])=>{
-    // Prima voce: prodotto generico (se non già visto)
     if(!vistiNome.has(prodotto.toLowerCase())){
-      risultati.push({nome:prodotto,prodotto,marchio:'',macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,marchi:info.marchi});
+      risultati.push({nome:prodotto,prodotto,marchio:'',macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,marchi:info.marchi,_tipo:'prodotto'});
       vistiNome.add(prodotto.toLowerCase());
     }
-    // Poi ogni marchio come voce separata
     info.marchi.forEach(m=>{
       const nomeCompleto=`${prodotto} ${m}`;
       if(!vistiNome.has(nomeCompleto.toLowerCase())){
-        risultati.push({nome:nomeCompleto,prodotto,marchio:m,macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false});
+        risultati.push({nome:nomeCompleto,prodotto,marchio:m,macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,_tipo:'prodotto'});
         vistiNome.add(nomeCompleto.toLowerCase());
       }
     });
   });
 
-  return risultati.slice(0,8);
+  // 3. Categorie — macrogruppi e tipologie che matchano la query
+  const vistiCat=new Set();
+  getMacrogruppi().forEach(macro=>{
+    if(macro.toLowerCase().includes(q)&&!vistiCat.has('macro:'+macro)){
+      const nProd=catalogoCache.filter(c=>c.macrogruppo===macro).length;
+      risultati.push({_tipo:'categoria',_catTipo:'macro',nome:macro,macrogruppo:macro,tipologia:'',_count:nProd,_label:'Categoria'});
+      vistiCat.add('macro:'+macro);
+    }
+  });
+  getMacrogruppi().forEach(macro=>{
+    getTipologie(macro).forEach(tipo=>{
+      if(tipo.toLowerCase().includes(q)&&!vistiCat.has('tipo:'+macro+':'+tipo)){
+        const nProd=catalogoCache.filter(c=>c.macrogruppo===macro&&c.tipologia===tipo).length;
+        risultati.push({_tipo:'categoria',_catTipo:'tipologia',nome:tipo,macrogruppo:macro,tipologia:tipo,_count:nProd,_label:macro});
+        vistiCat.add('tipo:'+macro+':'+tipo);
+      }
+    });
+  });
+
+  return risultati.slice(0,10);
 }
 
 function renderSuggerimenti(inputId, boxId, onSelect){
@@ -2238,15 +2255,26 @@ function onQuickInput(){
 function renderQuickDropdown(){
   const dd=document.getElementById('quickDropdown');
   if(!acSugg.length){dd.classList.remove('open');dd.innerHTML='';return;}
-  dd.innerHTML=acSugg.map((s,i)=>`
-    <div class="ac-item${acIndex===i?' selected':''}" onmousedown="selectAcItem(${i})">
+  dd.innerHTML=acSugg.map((s,i)=>{
+    if(s._tipo==='categoria'){
+      return `<div class="ac-item${acIndex===i?' selected':''}" onmousedown="selectAcItem(${i})" style="border-left:3px solid var(--blue);background:var(--blue-dim)">
+        <span style="font-size:1.1rem;flex-shrink:0">${getMacroEmoji(s.macrogruppo)}</span>
+        <div class="ac-item-left">
+          <div class="ac-item-nome" style="color:var(--blue)">${s._catTipo==='tipologia'?esc(s.tipologia):esc(s.macrogruppo)}</div>
+          <div class="ac-item-meta">${esc(s._label)}${s._count>0?` · ${s._count} prodott${s._count===1?'o':'i'}`:''}</div>
+        </div>
+        <span style="font-size:.68rem;font-weight:800;background:var(--blue-dim);color:var(--blue);border:1px solid rgba(96,165,250,.3);border-radius:5px;padding:1px 7px;white-space:nowrap;flex-shrink:0">📂 categoria</span>
+      </div>`;
+    }
+    return `<div class="ac-item${acIndex===i?' selected':''}" onmousedown="selectAcItem(${i})">
       <span style="font-size:1.1rem;flex-shrink:0">${getMacroEmoji(s.macrogruppo)}</span>
       <div class="ac-item-left">
         <div class="ac-item-nome">${esc(s.prodotto||s.nome)}${s.marchio?` <span style="color:var(--text-dim);font-weight:400">· ${esc(s.marchio)}</span>`:''}</div>
         <div class="ac-item-meta">${[s.macrogruppo,s.tipologia].filter(Boolean).map(x=>esc(x)).join(' › ')}${s.marchi&&s.marchi.length?` · <span style="color:var(--amber)">${s.marchi.length} march${s.marchi.length===1?'io':'i'}</span>`:''}</div>
       </div>
       ${s.mine?'<span class="ac-item-mine">🏠 mio</span>':''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
   dd.classList.add('open');
 }
 
@@ -2263,13 +2291,37 @@ function onQuickKey(e){
 
 function selectAcItem(i){
   const s=acSugg[i];if(!s)return;
+  closeQuickDropdown();
+  if(s._tipo==='categoria'){
+    aggiungiCategoriaASpesa(s);
+    return;
+  }
   document.getElementById('quickAddInput').value=s.nome;
   document.getElementById('quickAddInput')._macro=s.macrogruppo;
   document.getElementById('quickAddInput')._tipo=s.tipologia;
   document.getElementById('quickAddInput')._prodotto=s.prodotto||s.nome;
   document.getElementById('quickAddInput')._marchio=s.marchio||'';
-  closeQuickDropdown();
   quickAdd();
+}
+
+async function aggiungiCategoriaASpesa(s){
+  // Aggiunge la categoria stessa come voce nella lista della spesa
+  const nome = s._catTipo==='tipologia' ? s.tipologia : s.macrogruppo;
+  const macrogruppo = s.macrogruppo;
+  const tipologia = s._catTipo==='tipologia' ? s.tipologia : '';
+  // Evita duplicati
+  if(prodotti.find(x=>x.inSpesa&&x.nome.toLowerCase()===nome.toLowerCase())){
+    showToast(`"${nome}" è già nella lista`);
+    document.getElementById('quickAddInput').value='';
+    return;
+  }
+  const ins=await dbInsert({nome,prodotto:nome,marchio:'',quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0});
+  if(ins){
+    prodotti.push(ins);
+    render();
+    showToast(`✓ "${nome}" aggiunto alla spesa`);
+  }
+  document.getElementById('quickAddInput').value='';
 }
 
 function closeQuickDropdown(){
@@ -2372,13 +2424,18 @@ function renderNegozio(){
     negozioItems.forEach((item,i)=>{
       if(item.preso)return;
       const p=item.prodotto;
-      html+=`<div class="negozio-item">
-        <div class="negozio-item-header" onclick="spuntaItem(${i})">
-          <div class="check-circle"></div>
+      const isCat=isCategoria(p);
+      html+=`<div class="negozio-item${isCat?' ' :''}">
+        <div class="negozio-item-header" onclick="spuntaItem(${i})" ${isCat?'style="border-left:3px solid var(--blue)"':''}>
+          <div class="check-circle" ${isCat?'style="border-color:rgba(96,165,250,.4)"':''}></div>
           <span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span>
           <div style="flex:1">
-            <span style="font-weight:700">${esc(p.nome)}</span>
-            ${p.tipologia?`<div style="font-size:.75rem;color:var(--text-mid)">${esc(p.macrogruppo||'')}${p.macrogruppo&&p.tipologia?' › ':''}${esc(p.tipologia||'')}</div>`:''}
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-weight:700">${esc(p.nome)}</span>
+              ${isCat?'<span style="font-size:.65rem;font-weight:800;background:var(--blue-dim);color:var(--blue);border:1px solid rgba(96,165,250,.3);border-radius:5px;padding:1px 6px">📂 categoria</span>':''}
+            </div>
+            ${!isCat&&p.tipologia?`<div style="font-size:.75rem;color:var(--text-mid)">${esc(p.macrogruppo||'')}${p.macrogruppo&&p.tipologia?' › ':''}${esc(p.tipologia||'')}</div>`:''}
+            ${isCat?'<div style="font-size:.75rem;color:var(--blue);margin-top:1px">Tocca per specificare il prodotto</div>':''}
           </div>
           <span style="color:var(--text-mid);font-size:.85rem">×${p.quantita}</span>
         </div>
@@ -2398,6 +2455,7 @@ function renderNegozio(){
     negozioItems.forEach((item,i)=>{
       if(!item.preso)return;
       const p=item.prodotto;
+      const isCat=isCategoria(p);
       // Calcola risparmio vs media storica
       const storicoNome=storicoCache.filter(r=>r.nome.toLowerCase()===p.nome.toLowerCase()&&r.prezzo>0);
       const mediaStorica=storicoNome.length>0?storicoNome.reduce((s,r)=>s+r.prezzo,0)/storicoNome.length:0;
@@ -2426,6 +2484,12 @@ function renderNegozio(){
           </div>
         </div>
         <div class="negozio-item-detail" id="dettaglio-${i}">
+          ${isCat?`<div class="field" style="margin-bottom:4px">
+            <label style="color:var(--blue)">🛒 Che prodotto hai preso? *</label>
+            <input id="neg-cat-prod-${i}" placeholder="es. Latte di avena, Latte di soia…" autocomplete="off"
+              style="border-color:rgba(96,165,250,.4);box-shadow:0 0 0 3px rgba(96,165,250,.08)"
+              onchange="aggiornaNomeDaCategoria(${i})">
+          </div>`:''}
           <div class="field-row">
             <div class="field"><label>Prezzo €</label><input type="number" min="0" step="0.01" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" placeholder="0.00" onchange="updateNF(${i},'prezzo',parseFloat(this.value)||0)"></div>
             <div class="field"><label>Quantità</label><input type="number" min="1" value="${p.quantita}" onchange="updateNF(${i},'quantita',parseInt(this.value)||1)"></div>
@@ -2459,12 +2523,42 @@ function renderNegozio(){
   document.getElementById('negozioContent').innerHTML=html;
 }
 
+function isCategoria(p){
+  // Un item è una "categoria" se il suo nome coincide col macrogruppo o con la tipologia
+  // (ovvero non è un prodotto specifico ma una categoria generica)
+  if(!p.macrogruppo) return false;
+  const n=p.nome.toLowerCase().trim();
+  if(n===p.macrogruppo.toLowerCase().trim()) return true;
+  if(p.tipologia && n===p.tipologia.toLowerCase().trim()) return true;
+  return false;
+}
+
 function spuntaItem(i){
   negozioItems[i].preso=true;
   renderNegozio();
-  // Apri automaticamente il dettaglio per compilare prezzo ecc.
   const det=document.getElementById(`dettaglio-${i}`);
-  if(det){det.classList.add('open');det.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  if(det){
+    det.classList.add('open');
+    det.scrollIntoView({behavior:'smooth',block:'nearest'});
+    // Se è una categoria, metti il focus sul campo prodotto
+    const cp=document.getElementById(`neg-cat-prod-${i}`);
+    if(cp) setTimeout(()=>cp.focus(),150);
+  }
+}
+
+async function aggiornaNomeDaCategoria(i){
+  const input=document.getElementById(`neg-cat-prod-${i}`);
+  if(!input) return;
+  const nuovoNome=input.value.trim();
+  if(!nuovoNome) return;
+  const p=negozioItems[i].prodotto;
+  const vecchioId=p.id;
+  // Cerca nel catalogo per arricchire macro/tipo
+  const inCat=catalogoCache.find(c=>c.nome.toLowerCase()===nuovoNome.toLowerCase());
+  if(inCat){p.macrogruppo=inCat.macrogruppo||p.macrogruppo;p.tipologia=inCat.tipologia||p.tipologia;}
+  p.nome=nuovoNome;p.prodotto=nuovoNome;
+  const inProd=prodotti.find(x=>x.id===vecchioId);
+  if(inProd){inProd.nome=nuovoNome;inProd.prodotto=nuovoNome;inProd.macrogruppo=p.macrogruppo;inProd.tipologia=p.tipologia;await dbUpdate(inProd);}
 }
 
 function rimuoviDalCarrello(i){negozioItems[i].preso=false;renderNegozio();}
