@@ -1978,9 +1978,12 @@ function mostraPopupEsaurito(p){
 }
 function chiudiEsaurito(){document.getElementById('esauritoModal').classList.remove('open');esauritoPendente=null;}
 async function aggiungiEsauritoASpesa(){
-  if(!esauritoPendente)return;
-  await mandaInSpesa(esauritoPendente.id);
-  chiudiEsaurito();
+  if(!_lock('aggiungiEsaurito'))return;
+  if(!esauritoPendente){_unlock('aggiungiEsaurito');return;}
+  try{
+    await mandaInSpesa(esauritoPendente.id);
+    chiudiEsaurito();
+  }finally{_unlock('aggiungiEsaurito');}
 }
 
 async function fieldChange(id,field,value){
@@ -2012,15 +2015,21 @@ function eliminaProdotto(id){
   document.getElementById('eliminaModal').classList.add('open');
 }
 async function confermaElimina(){
-  if(eliminaPendingId===null)return;
+  if(!_lock('confermaElimina'))return;
+  if(eliminaPendingId===null){_unlock('confermaElimina');return;}
   const id=eliminaPendingId;
   chiudiEliminaModal();
-  prodotti=prodotti.filter(x=>x.id!==id);render();await dbDelete(id);
+  try{
+    prodotti=prodotti.filter(x=>x.id!==id);render();await dbDelete(id);
+  }finally{_unlock('confermaElimina');}
 }
 function chiudiEliminaModal(){document.getElementById('eliminaModal').classList.remove('open');eliminaPendingId=null;}
 async function changeSpesaQty(id,delta){const p=prodotti.find(x=>x.id===id);if(!p)return;p.quantita=Math.max(1,p.quantita+delta);render();await dbUpdate(p);}
 
 let _quickAddBusy=false;
+const _busy=new Set();
+function _lock(name){if(_busy.has(name))return false;_busy.add(name);return true;}
+function _unlock(name){_busy.delete(name);}
 async function quickAdd(){
   if(_quickAddBusy)return;
   _quickAddBusy=true;
@@ -2142,7 +2151,9 @@ function closeModal(){
 }
 function changeModalQty(d){modalQty=Math.max(1,modalQty+d);document.getElementById('modal-qty').textContent=modalQty;}
 async function saveModal(){
-  const prodotto=document.getElementById('f-prodotto').value.trim();if(!prodotto){document.getElementById('f-prodotto').focus();return;}
+  if(!_lock('saveModal'))return;
+  try{
+  const prodotto=document.getElementById('f-prodotto').value.trim();if(!prodotto){_unlock('saveModal');document.getElementById('f-prodotto').focus();return;}
   const marchio=document.getElementById('f-marchio').value.trim();
   const nome=marchio?`${prodotto} ${marchio}`:prodotto;
   const scadenza=fmtScad(document.getElementById('f-scadenza').value);
@@ -2166,6 +2177,7 @@ async function saveModal(){
     }
   }
   closeModal();render();
+  }finally{_unlock('saveModal');}
 }
 document.getElementById('f-scadenza').addEventListener('input',function(){this.value=fmtScad(this.value);});
 
@@ -2395,8 +2407,10 @@ function applicaSuggerimentoNeg(i){
 }
 
 async function saveNegAdd(){
+  if(!_lock('saveNegAdd'))return;
+  try{
   const nome=document.getElementById('neg-f-nome').value.trim();
-  if(!nome){document.getElementById('neg-f-nome').focus();return;}
+  if(!nome){_unlock('saveNegAdd');document.getElementById('neg-f-nome').focus();return;}
   const quantita=parseInt(document.getElementById('neg-f-qty').value)||1;
   const prezzo=parseFloat(document.getElementById('neg-f-prezzo').value)||0;
   const peso=fmtPeso(document.getElementById('neg-f-peso').value.trim());
@@ -2412,6 +2426,7 @@ async function saveNegAdd(){
   toggleNegAdd(false);
   renderNegozio();
   showToast(`✓ "${nome}" aggiunto alla spesa`);
+  }finally{_unlock('saveNegAdd');}
 }
 
 function renderNegozio(){
@@ -2633,6 +2648,8 @@ function selezionaMarchioNeg(i, m){
 }
 
 async function completaSpesa(){
+  if(!_lock('completaSpesa'))return;
+  try{
   const negozio=document.getElementById('negozioScreen').dataset.negozio||'';
   const comp=negozioItems.filter(x=>x.preso);
   for(const item of comp){
@@ -2658,6 +2675,7 @@ async function completaSpesa(){
   }
   closeNegozioScreen();currentTab=0;render();
   showToast(`✓ ${comp.length} prodott${comp.length===1?'o':'i'} in credenza`);
+  }finally{_unlock('completaSpesa');}
 }
 
 // ── BOOT ──────────────────────────────────────────────
