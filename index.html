@@ -1069,12 +1069,15 @@ async function riconciliaCategorie(){
   }
   for(const p of aggiornati) await dbUpdate(p);
 }
+const _localInsertIds=new Set();
 async function dbInsert(p){
   setSyncing(true);
   const row={...toDb(p),user_id:currentUser.id};
   const{data,error}=await sb.from('prodotti').insert([row]).select().single();
   setSyncing(false);
   if(error){showToast('❌ Errore salvataggio');return null;}
+  // Marca l'ID come inserito localmente: il realtime deve ignorarlo
+  if(data?.id) _localInsertIds.add(data.id);
   return data;
 }
 async function dbUpdate(p){
@@ -1165,7 +1168,8 @@ function startRealtime(){
         const {eventType, new: newRow, old: oldRow} = payload;
         if(eventType === 'INSERT'){
           const row = {...newRow, scadenza: isoToScad(newRow.scadenza||'')};
-          // Salta se già presente localmente (inserito da questa sessione via dbInsert)
+          // Salta se già inserito localmente (race condition: realtime arriva prima del return di dbInsert)
+          if(_localInsertIds.has(row.id)){_localInsertIds.delete(row.id);return;}
           if(prodotti.find(p=>p.id===row.id)) return;
           prodotti.push(row);
         } else if(eventType === 'UPDATE'){
