@@ -2020,9 +2020,13 @@ async function confermaElimina(){
 function chiudiEliminaModal(){document.getElementById('eliminaModal').classList.remove('open');eliminaPendingId=null;}
 async function changeSpesaQty(id,delta){const p=prodotti.find(x=>x.id===id);if(!p)return;p.quantita=Math.max(1,p.quantita+delta);render();await dbUpdate(p);}
 
+let _quickAddBusy=false;
 async function quickAdd(){
+  if(_quickAddBusy)return;
+  _quickAddBusy=true;
+  try{
   const input=document.getElementById('quickAddInput');
-  const nome=input.value.trim();if(!nome)return;
+  const nome=input.value.trim();if(!nome){_quickAddBusy=false;return;}
   let macrogruppo=input._macro||'';
   let tipologia=input._tipo||'';
   let prodotto=input._prodotto||nome;
@@ -2046,6 +2050,7 @@ async function quickAdd(){
   // Controlla se il prodotto è già nel catalogo (per nome esatto)
   const nelCatalogo=catalogoCache.some(c=>c.nome.toLowerCase()===nome.toLowerCase());
   if(!nelCatalogo) apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia);
+  }finally{_quickAddBusy=false;}
 }
 
 // ── PROPOSTA AGGIUNTA AL CATALOGO ────────────────────
