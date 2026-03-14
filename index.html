@@ -293,7 +293,7 @@
 <div class="app" id="app">
 
   <!-- SETUP -->
-  <div class="setup-screen" id="setupScreen">
+  <div class="setup-screen" id="setupScreen" style="flex-direction:column">
     <div class="setup-box">
       <h1>🌿 La Mia Credenza</h1>
       <p>Prima configurazione: collega il tuo database Supabase.</p>
@@ -310,7 +310,7 @@
   </div>
 
   <!-- AUTH -->
-  <div class="auth-screen hidden" id="authScreen">
+  <div class="auth-screen hidden" id="authScreen" style="flex-direction:column">
     <div class="auth-box">
       <h1>🌿 La Mia Credenza</h1>
       <p class="sub">Accedi per gestire la lista condivisa</p>
@@ -1313,7 +1313,20 @@ function stopRealtime(){
 }
 
 // ── UTILS ─────────────────────────────────────────────
-function show(id,visible){const el=document.getElementById(id);if(visible){el.classList.remove('hidden');if(el.style.flexDirection)el.style.display='flex';}else el.classList.add('hidden');}
+function show(id,visible){
+  const el=document.getElementById(id);if(!el)return;
+  if(visible){
+    el.classList.remove('hidden');
+    // Ripristina display:flex per gli elementi che usano flexbox
+    const cs=getComputedStyle(el);
+    if(cs.display==='none'||cs.display===''){
+      el.style.display=el.classList.contains('setup-screen')||el.classList.contains('auth-screen')||el.id==='mainApp'?'flex':'block';
+    }
+  }else{
+    el.classList.add('hidden');
+    el.style.display='';
+  }
+}
 function showMsg(el,msg){el.textContent=msg;el.style.display='block';}
 function hideMsg(id){const el=document.getElementById(id);if(el)el.style.display='none';}
 function setSyncing(on){const d=document.getElementById('syncDot');if(d)d.className='sync-dot'+(on?' syncing':'');}
