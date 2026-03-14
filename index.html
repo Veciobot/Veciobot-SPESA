@@ -305,7 +305,7 @@
       <div class="field"><label>Project URL</label><input id="cfg-url" placeholder="https://xxxx.supabase.co"/></div>
       <div class="field"><label>Anon Key</label><input id="cfg-key" placeholder="eyJ..."/></div>
       <p id="cfg-err" class="msg-error"></p>
-      <button class="btn-primary" style="width:100%;margin-top:16px" onclick="saveSetup()">🚀 Collega</button>
+      <button id="setupBtn" class="btn-primary" style="width:100%;margin-top:16px" onclick="saveSetup()">🚀 Collega</button>
     </div>
   </div>
 
@@ -698,27 +698,28 @@ async function saveSetup(){
   const url=document.getElementById('cfg-url').value.trim();
   const key=document.getElementById('cfg-key').value.trim();
   const err=document.getElementById('cfg-err');
-  const btn=document.querySelector('#setupScreen .btn-primary[onclick="saveSetup()"]');
+  const btn=document.getElementById('setupBtn');
   // Validazione
   if(!url||!key){showMsg(err,'Inserisci entrambi i valori.');return;}
   if(!url.startsWith('https://')){showMsg(err,'URL non valido. Deve iniziare con https://');return;}
   if(!key.startsWith('eyJ')){showMsg(err,'Chiave non valida. Copia la chiave "anon public" da Project Settings → API.');return;}
   // Feedback visivo
   err.style.display='none';
-  if(btn){btn.disabled=true;btn.textContent='⏳ Connessione…';}
+  btn.disabled=true;btn.textContent='⏳ Connessione…';
   try{
     localStorage.setItem(CFG_KEY,JSON.stringify({url,key}));
   }catch(e){
     showMsg(err,'Impossibile salvare le credenziali: '+e.message);
-    if(btn){btn.disabled=false;btn.textContent='🚀 Collega';}
+    btn.disabled=false;btn.textContent='🚀 Collega';
     return;
   }
   try{
     await initSb(url,key);
   }catch(e){
+    console.error('initSb error:',e);
     showMsg(err,'Connessione fallita: '+(e.message||'controlla URL e chiave.'));
     localStorage.removeItem(CFG_KEY);
-    if(btn){btn.disabled=false;btn.textContent='🚀 Collega';}
+    btn.disabled=false;btn.textContent='🚀 Collega';
   }
 }
 function changeSetup(){localStorage.removeItem(CFG_KEY);location.reload();}
