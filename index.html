@@ -94,7 +94,7 @@
   .btn-secondary:hover{background:rgba(255,255,255,.08);border-color:var(--border-mid);}
   .btn-outline{flex:1;padding:8px 12px;border:1px solid var(--green-border);border-radius:10px;background:var(--green-dim);color:var(--green);font-family:'Bricolage Grotesque',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s;}
   .btn-outline:hover{background:rgba(52,211,153,.22);border-color:var(--green);}
-  .btn-delete{background:var(--red-dim);border:1px solid var(--red-border);border-radius:9px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--red);transition:all .15s;flex-shrink:0;}
+  .btn-delete{background:var(--red-dim);border:1px solid var(--red-border);border-radius:9px;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--red);transition:all .15s;flex-shrink:0;}
   .btn-delete:hover{background:rgba(248,113,113,.22);}
 
   /* HEADER */
@@ -391,7 +391,7 @@
         </select>
       </div>
     </div>
-    <div class="field"><label>Soglia minima</label><input id="f-soglia" type="number" min="0" placeholder="0" title="Sotto questa quantità va in spesa"/></div>
+    <div class="field"><label>Soglia minima</label><input id="f-soglia" type="number" min="0" placeholder="0"/><div style="font-size:.75rem;color:var(--text-dim);margin-top:4px">Sotto questa quantità l'app propone di riacquistare il prodotto.</div></div>
     <div class="field-row">
       <div class="field"><label>Scadenza</label><input id="f-scadenza" placeholder="gg/mm/aaaa" maxlength="10" inputmode="numeric"/></div>
       <div class="field"><label>Prezzo €</label><input id="f-prezzo" type="number" min="0" step="0.01" placeholder="0.00"/></div>
@@ -450,7 +450,7 @@
 <div class="overlay" id="negozioDialog" onclick="if(event.target===this)closeNegozioDialog()">
   <div class="modal">
     <div class="modal-header"><h2>🛍️ In quale negozio sei?</h2><button class="modal-close" onclick="closeNegozioDialog()">✕</button></div>
-    <div class="field"><input id="negozioInput" placeholder="es. Esselunga, Coop…" onkeydown="if(event.key==='Enter')startSpesa()"/></div>
+    <div class="field"><label>Negozio</label><input id="negozioInput" placeholder="es. Esselunga, Coop…" onkeydown="if(event.key==='Enter')startSpesa()"/></div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeNegozioDialog()">Annulla</button>
       <button class="btn-primary" onclick="startSpesa()" style="flex:1">🛒 Inizia</button>
@@ -463,6 +463,11 @@
   <div class="negozio-header">
     <button class="icon-btn" onclick="closeNegozioScreen()">←</button>
     <div class="header-title" id="negozioTitle">🛍️ Spesa</div>
+  </div>
+  <div style="display:flex;gap:6px;padding:8px 12px;background:rgba(22,27,34,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)" id="negozioSortBar">
+    <button class="stat-tab" id="neg-sort-nome" onclick="setNegozioSort('nome')">📝 Nome</button>
+    <button class="stat-tab active" id="neg-sort-macrogruppo" onclick="setNegozioSort('macrogruppo')">📂 Reparto</button>
+    <button class="stat-tab" id="neg-sort-tipologia" onclick="setNegozioSort('tipologia')">🏷 Categoria</button>
   </div>
   <div class="negozio-content" id="negozioContent"></div>
   <div class="negozio-footer">
@@ -521,7 +526,7 @@
     <p id="eliminaMsg" style="font-size:.95rem;color:var(--text-mid);line-height:1.5;"></p>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="chiudiEliminaModal()">Annulla</button>
-      <button style="flex:1;padding:10px 16px;background:var(--red-dim);color:var(--red);border:1px solid var(--red-border);border-radius:11px;font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;font-weight:800;cursor:pointer" onclick="confermaElimina()">🗑️ Elimina</button>
+      <button class="btn-delete" style="flex:1;width:auto;height:auto;padding:10px 16px;border-radius:11px;font-size:.95rem;font-weight:800" onclick="confermaElimina()">🗑️ Elimina</button>
     </div>
   </div>
 </div>
@@ -672,7 +677,8 @@ let prodotti = [];
 let storicoCache = [];
 let currentTab = 0;
 let sortMode = 'nome';
-let spesaSortMode = 'macrogruppo'; // 'nome' | 'macrogruppo'
+let spesaSortMode = 'macrogruppo'; // 'nome' | 'macrogruppo' | 'tipologia'
+let negozioSortMode = 'macrogruppo'; // 'nome' | 'macrogruppo' | 'tipologia' — stessa logica della lista spesa
 let macroFilter = 'tutti';
 let editingId = null;
 let modalQty = 1;
@@ -767,6 +773,9 @@ async function loadGerarchia(){
     // Tabella vuota o errore: mantieni GERARCHIA_DEFAULT in memoria (non scrive su Supabase)
   }catch(e){console.warn('Gerarchia Supabase non disponibile',e);}
 }
+// Riscrittura completa della gerarchia — usata solo come fallback
+// (es. importazione, ripristino). Le operazioni normali usano le
+// funzioni chirurgiche sotto che toccano solo la riga interessata.
 async function salvaGerarchia(){
   if(!currentUser)return;
   try{
@@ -780,6 +789,32 @@ async function salvaGerarchia(){
         await sb.from('gerarchia').insert(righe.slice(i,i+50));
     }
   }catch(e){showToast('❌ Errore salvataggio categorie');console.error(e);}
+}
+// Inserisce una singola riga (macrogruppo, tipologia) nel DB
+async function dbGerarchiaInsert(macrogruppo, tipologia){
+  if(!currentUser)return;
+  const{error}=await sb.from('gerarchia')
+    .insert([{user_id:currentUser.id,macrogruppo,tipologia}]);
+  if(error)showToast('❌ Errore salvataggio categoria');
+}
+// Cancella una singola riga (macrogruppo, tipologia) dal DB
+async function dbGerarchiaDeleteTipo(macrogruppo, tipologia){
+  if(!currentUser)return;
+  const{error}=await sb.from('gerarchia')
+    .delete()
+    .eq('user_id',currentUser.id)
+    .eq('macrogruppo',macrogruppo)
+    .eq('tipologia',tipologia);
+  if(error)showToast('❌ Errore eliminazione tipologia');
+}
+// Cancella tutte le righe di un macrogruppo dal DB
+async function dbGerarchiaDeleteMacro(macrogruppo){
+  if(!currentUser)return;
+  const{error}=await sb.from('gerarchia')
+    .delete()
+    .eq('user_id',currentUser.id)
+    .eq('macrogruppo',macrogruppo);
+  if(error)showToast('❌ Errore eliminazione macrogruppo');
 }
 
 function getMacrogruppi(){return Object.keys(gerarchia);}
@@ -817,7 +852,7 @@ let catFiltro='';
 function renderCatalogoUI(){
   const el=document.getElementById('catalogoContent');if(!el)return;
   const q=catFiltro.toLowerCase().trim();
-  const filtrati=q?catalogoCache.filter(c=>c.nome.toLowerCase().includes(q)||c.macrogruppo.toLowerCase().includes(q)):catalogoCache;
+  const filtrati=q?catalogoCache.filter(c=>normNome(c.nome).includes(q)||c.macrogruppo.toLowerCase().includes(q)):catalogoCache;
 
   el.innerHTML=`
     <div style="margin-bottom:10px;font-size:.78rem;color:var(--text-dim)">
@@ -864,17 +899,20 @@ function onCatMacroChange(){
 }
 
 async function aggiungiAlCatalogo(){
-  const prodotto=document.getElementById('cat-f-prodotto').value.trim();
-  if(!prodotto){document.getElementById('cat-f-prodotto').focus();return;}
-  const marchio=document.getElementById('cat-f-marchio').value.trim();
-  const nome=marchio?`${prodotto} ${marchio}`:prodotto;
-  const macrogruppo=document.getElementById('cat-f-macro').value;
-  const tipologia=document.getElementById('cat-f-tipo').value;
-  if(catalogoCache.find(c=>c.nome.toLowerCase()===nome.toLowerCase())){showToast('Prodotto già nel catalogo');return;}
-  setSyncing(true);
-  const result=await dbCatalogoInsert(nome,prodotto,marchio,macrogruppo,tipologia);
-  setSyncing(false);
-  if(result){showToast(`✓ "${nome}" aggiunto al catalogo`);catFiltro='';renderCatalogoUI();}
+  if(!_lock('aggiungiAlCatalogo'))return;
+  try{
+    const prodotto=document.getElementById('cat-f-prodotto').value.trim();
+    if(!prodotto){document.getElementById('cat-f-prodotto').focus();return;}
+    const marchio=document.getElementById('cat-f-marchio').value.trim();
+    const nome=buildNome(prodotto,marchio);
+    const macrogruppo=document.getElementById('cat-f-macro').value;
+    const tipologia=document.getElementById('cat-f-tipo').value;
+    if(catalogoCache.find(c=>normNome(c.nome)===normNome(nome))){showToast('Prodotto già nel catalogo');return;}
+    setSyncing(true);
+    const result=await dbCatalogoInsert(nome,prodotto,marchio,macrogruppo,tipologia);
+    setSyncing(false);
+    if(result){showToast(`✓ "${nome}" aggiunto al catalogo`);catFiltro='';renderCatalogoUI();}
+  }finally{_unlock('aggiungiAlCatalogo');}
 }
 
 async function eliminaDalCatalogo(id){
@@ -927,33 +965,45 @@ function renderGerarchiaModal(){
 async function aggiungiMacro(){
   const nome=document.getElementById('gerNuovoMacro').value.trim();
   if(!nome||gerarchia[nome])return;
+  // Il macrogruppo senza tipologie non ha ancora righe nel DB
+  // (la tabella gerarchia memorizza coppie macro+tipologia).
+  // Viene persistito quando si aggiunge la prima tipologia.
   gerarchia[nome]=[];
   document.getElementById('gerNuovoMacro').value='';
-  await salvaGerarchia();
   renderGerarchiaModal();
   setTimeout(()=>{const s=document.getElementById('gerSelMacro');if(s)s.value=nome;renderGerarchiaModal();},50);
 }
 async function aggiungiTipo(){
-  const macro=document.getElementById('gerSelMacro').value;
-  const nome=document.getElementById('gerNuovaTipo').value.trim();
-  if(!macro||!nome||gerarchia[macro].includes(nome))return;
-  gerarchia[macro].push(nome);
-  document.getElementById('gerNuovaTipo').value='';
-  await salvaGerarchia();
-  renderGerarchiaModal();
+  if(!_lock('gerarchia'))return;
+  try{
+    const macro=document.getElementById('gerSelMacro').value;
+    const nome=document.getElementById('gerNuovaTipo').value.trim();
+    if(!macro||!nome||gerarchia[macro].includes(nome))return;
+    gerarchia[macro].push(nome);
+    document.getElementById('gerNuovaTipo').value='';
+    await dbGerarchiaInsert(macro, nome);
+    renderGerarchiaModal();
+  }finally{_unlock('gerarchia');}
 }
 async function eliminaMacro(macro){
-  if(!gerarchia[macro])return;
-  if(!confirm(`Eliminare il macrogruppo "${macro}" e tutte le sue tipologie?`))return;
-  delete gerarchia[macro];
-  await salvaGerarchia();
-  renderGerarchiaModal();
+  if(!_lock('gerarchia'))return;
+  try{
+    if(!gerarchia[macro])return;
+    if(!confirm(`Eliminare il macrogruppo "${macro}" e tutte le sue tipologie?`))return;
+    delete gerarchia[macro];
+    await dbGerarchiaDeleteMacro(macro);
+    renderGerarchiaModal();
+  }finally{_unlock('gerarchia');}
 }
 async function eliminaTipo(macro,i){
-  if(!gerarchia[macro])return;
-  gerarchia[macro].splice(i,1);
-  await salvaGerarchia();
-  renderGerarchiaModal();
+  if(!_lock('gerarchia'))return;
+  try{
+    if(!gerarchia[macro])return;
+    const tipologia=gerarchia[macro][i];
+    gerarchia[macro].splice(i,1);
+    await dbGerarchiaDeleteTipo(macro, tipologia);
+    renderGerarchiaModal();
+  }finally{_unlock('gerarchia');}
 }
 
 
@@ -977,30 +1027,22 @@ function getSuggerimenti(testo, escludiInSpesa=false){
     }
   });
 
-  // 2. Catalogo Supabase — cerca per prodotto (generico) o marchio
-  const perProdotto={};
-  catalogoCache.forEach(c=>{
-    const prodotto=c.prodotto||c.nome;
-    const marchio=c.marchio||'';
-    const matchProdotto=prodotto.toLowerCase().includes(q);
-    const matchMarchio=marchio.toLowerCase().includes(q);
-    const matchNome=c.nome.toLowerCase().includes(q);
-    if(!matchProdotto&&!matchMarchio&&!matchNome)return;
-    if(!perProdotto[prodotto])perProdotto[prodotto]={macrogruppo:c.macrogruppo,tipologia:c.tipologia,marchi:[]};
-    if(marchio&&!perProdotto[prodotto].marchi.includes(marchio))
-      perProdotto[prodotto].marchi.push(marchio);
-  });
-
-  Object.entries(perProdotto).forEach(([prodotto,info])=>{
-    if(!vistiNome.has(prodotto.toLowerCase())){
-      risultati.push({nome:prodotto,prodotto,marchio:'',macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,marchi:info.marchi,_tipo:'prodotto'});
-      vistiNome.add(prodotto.toLowerCase());
+  // 2. Catalogo — usa l'indice precalcolato _catalogoIdx (O(n) scan sull'indice,
+  // ma ogni entry rappresenta un prodotto generico con tutti i suoi marchi già raggruppati)
+  _catalogoIdx.forEach((info,kProdotto)=>{
+    const matchProdotto=kProdotto.includes(q);
+    const matchMarchio=info.marchi.some(m=>m.toLowerCase().includes(q));
+    if(!matchProdotto&&!matchMarchio)return;
+    if(!vistiNome.has(kProdotto)){
+      risultati.push({nome:info.prodotto,prodotto:info.prodotto,marchio:'',macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,marchi:info.marchi,_tipo:'prodotto'});
+      vistiNome.add(kProdotto);
     }
     info.marchi.forEach(m=>{
-      const nomeCompleto=`${prodotto} ${m}`;
-      if(!vistiNome.has(nomeCompleto.toLowerCase())){
-        risultati.push({nome:nomeCompleto,prodotto,marchio:m,macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,_tipo:'prodotto'});
-        vistiNome.add(nomeCompleto.toLowerCase());
+      const nomeCompleto=buildNome(info.prodotto,m);
+      const kCompleto=normNome(nomeCompleto);
+      if(!vistiNome.has(kCompleto)){
+        risultati.push({nome:nomeCompleto,prodotto:info.prodotto,marchio:m,macrogruppo:info.macrogruppo,tipologia:info.tipologia,mine:false,_tipo:'prodotto'});
+        vistiNome.add(kCompleto);
       }
     });
   });
@@ -1053,21 +1095,47 @@ async function loadAll(){
 }
 
 // Aggiorna automaticamente macrogruppo/tipologia dei prodotti che li hanno vuoti
-// usando come fonte il catalogo già caricato in memoria
+// usando come fonte il catalogo già caricato in memoria.
+// Invece di N chiamate sequenziali, raggruppa per coppia (macrogruppo, tipologia)
+// ed esegue un solo UPDATE per gruppo con IN(ids) → al più poche chiamate totali.
 async function riconciliaCategorie(){
   if(!catalogoCache.length)return;
   const daAggiornare=prodotti.filter(p=>!p.macrogruppo||!p.tipologia);
   if(!daAggiornare.length)return;
+
+  // Costruisce un indice lowercase nome→ entry catalogo per ricerca O(1)
+  const indice=new Map();
+  catalogoCache.forEach(c=>indice.set(normNome(c.nome),c));
+
+  // Applica i valori in memoria e raccoglie i prodotti effettivamente cambiati
   const aggiornati=[];
   for(const p of daAggiornare){
-    const match=catalogoCache.find(c=>c.nome.toLowerCase()===p.nome.toLowerCase());
+    const match=indice.get(normNome(p.nome));
     if(!match)continue;
     let changed=false;
     if(!p.macrogruppo&&match.macrogruppo){p.macrogruppo=match.macrogruppo;changed=true;}
     if(!p.tipologia&&match.tipologia){p.tipologia=match.tipologia;changed=true;}
     if(changed)aggiornati.push(p);
   }
-  for(const p of aggiornati) await dbUpdate(p);
+  if(!aggiornati.length)return;
+
+  // Raggruppa per coppia (macrogruppo, tipologia) per minimizzare le chiamate DB
+  const gruppi=new Map();
+  aggiornati.forEach(p=>{
+    const key=`${p.macrogruppo}||${p.tipologia}`;
+    if(!gruppi.has(key))gruppi.set(key,{macrogruppo:p.macrogruppo,tipologia:p.tipologia,ids:[]});
+    gruppi.get(key).ids.push(p.id);
+  });
+
+  setSyncing(true);
+  try{
+    await Promise.all([...gruppi.values()].map(({macrogruppo,tipologia,ids})=>
+      sb.from('prodotti')
+        .update({macrogruppo,tipologia})
+        .in('id',ids)
+        .eq('user_id',currentUser.id)
+    ));
+  }finally{setSyncing(false);}
 }
 const _localInsertIds=new Set();
 async function dbInsert(p){
@@ -1095,17 +1163,38 @@ async function dbDelete(id){
 async function salvaStorico(nome,prezzo,quantita,negozio,macrogruppo,tipologia,marchio='',tipoOfferta='',risparmio=0){
   if(!prezzo||prezzo<=0)return;
   await sb.from('storico_prezzi').insert([{user_id:currentUser.id,nome,prezzo,quantita:quantita||1,negozio:negozio||'',macrogruppo:macrogruppo||'',tipologia:tipologia||'',marchio:marchio||'',tipo_offerta:tipoOfferta||'',risparmio:risparmio||0}]);
+  invalidaStorico(); // cache non più valida dopo ogni scrittura
 }
+// Flag di invalidazione: settato a true ogni volta che si scrive sullo storico.
+// loadStorico() fa il fetch solo se necessario, saltando il DB se la cache è fresca.
+let _storicoStale=true;
 async function loadStorico(){
+  if(!_storicoStale)return;
   const{data}=await sb.from('storico_prezzi').select('*').eq('user_id',currentUser.id).order('data',{ascending:true});
   storicoCache=data||[];
+  _storicoStale=false;
 }
+function invalidaStorico(){_storicoStale=true;}
 
 // ── CATALOGO SU SUPABASE ──────────────────────────────
+// Indice precalcolato per getSuggerimenti: prodotto_norm → {macrogruppo,tipologia,marchi[]}
+// Costruito una volta sola al caricamento e aggiornato incrementalmente su insert/delete.
+let _catalogoIdx=new Map();
+function _buildCatalogoIdx(){
+  _catalogoIdx=new Map();
+  catalogoCache.forEach(c=>{
+    const prodotto=c.prodotto||c.nome;
+    const k=normNome(prodotto);
+    if(!_catalogoIdx.has(k))_catalogoIdx.set(k,{prodotto,macrogruppo:c.macrogruppo,tipologia:c.tipologia,marchi:[]});
+    if(c.marchio&&!_catalogoIdx.get(k).marchi.includes(c.marchio))
+      _catalogoIdx.get(k).marchi.push(c.marchio);
+  });
+}
 async function loadCatalogo(){
   const{data,error}=await sb.from('catalogo_prodotti').select('*').order('nome');
-  if(error){console.warn('Catalogo non disponibile',error.message);catalogoCache=[];return;}
+  if(error){console.warn('Catalogo non disponibile',error.message);catalogoCache=[];_catalogoIdx=new Map();return;}
   catalogoCache=data||[];
+  _buildCatalogoIdx();
   // Nessun seed automatico: il catalogo si costruisce aggiungendo prodotti
 }
 
@@ -1120,6 +1209,7 @@ async function dbCatalogoInsert(nome,prodotto,marchio,macrogruppo,tipologia){
   if(error){showToast('❌ '+error.message);return null;}
   catalogoCache.push(data);
   catalogoCache.sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));
+  _buildCatalogoIdx(); // aggiorna indice
   return data;
 }
 
@@ -1127,10 +1217,19 @@ async function dbCatalogoDelete(id){
   const{error}=await sb.from('catalogo_prodotti').delete().eq('id',id);
   if(error){showToast('❌ '+error.message);return;}
   catalogoCache=catalogoCache.filter(c=>c.id!==id);
+  _buildCatalogoIdx(); // aggiorna indice
 }
+// Whitelist esplicita delle colonne della tabella prodotti.
+// Qualsiasi campo client-only (tipoOfferta, risparmioOfferta, scontoPct,
+// offertaFormula, _manuale, ecc.) viene ignorato e non inviato al DB.
+const DB_PRODOTTI_COLS = [
+  'user_id','nome','quantita','scadenza','prezzo','peso','negozio',
+  'inOfferta','inSpesa','tipologia','macrogruppo','soglia_minima',
+  'prodotto','marchio'
+];
 function toDb(p){
-  const d={...p};
-  delete d.id;
+  const d={};
+  DB_PRODOTTI_COLS.forEach(k=>{ if(k in p) d[k]=p[k]; });
   // Converti scadenza da gg/mm/aaaa a yyyy-mm-dd per il DB
   if(d.scadenza&&d.scadenza.includes('/')) d.scadenza=scadToIso(d.scadenza);
   return d;
@@ -1205,6 +1304,10 @@ function fmtPeso(v){
   if(/^\d+([.,]\d+)?$/.test(s))return s+'g';
   return s;
 }
+// Normalizza un nome per il confronto: lowercase, trim, spazi multipli → singolo
+function normNome(s){return String(s||'').toLowerCase().trim().replace(/\s+/g,' ');}
+// Costruisce il nome completo da prodotto + marchio in modo coerente
+function buildNome(prodotto,marchio){const p=(prodotto||'').trim();const m=(marchio||'').trim();return m?`${p} ${m}`:p;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function getCredenza(){return sorted(prodotti.filter(p=>!p.inSpesa));}
 function getSpesa(){return prodotti.filter(p=>p.inSpesa).sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));}
@@ -1265,7 +1368,7 @@ function renderCredenza(lista,el){
   const esauriti=filtered.filter(p=>p.quantita===0);
   let html='';
   if(pross.length>0)html+=`<div class="alert-banner">⚠️ <span>In scadenza entro 7 giorni: <strong>${pross.map(p=>p.nome).join(', ')}</strong></span></div>`;
-  if(esauriti.length>0)html+=`<div class="alert-banner" style="background:var(--red-pale);border-color:var(--red);color:var(--red)">📦 <span>Esauriti: <strong>${esauriti.map(p=>p.nome).join(', ')}</strong></span></div>`;
+  if(esauriti.length>0)html+=`<div class="alert-banner" style="background:var(--red-dim);border-color:var(--red-border);color:var(--red)">📦 <span>Esauriti: <strong>${esauriti.map(p=>p.nome).join(', ')}</strong></span></div>`;
   if(filtered.length===0)html+=`<div class="empty-state"><span class="emoji">📦</span><p>Nessun prodotto${macroFilter!=='tutti'?' in questa categoria':''}.</p></div>`;
   else filtered.forEach(p=>{html+=renderCard(p);});
   el.innerHTML=html;
@@ -1276,14 +1379,15 @@ function renderCard(p){
   const pr=p.prezzo>0?`<span class="chip">€${p.prezzo.toFixed(2)}</span>`:'';
   const pe=p.peso?`<span class="chip">${esc(fmtPeso(p.peso))}</span>`:'';
   const ng=p.negozio?`<span class="chip">🏪 ${esc(p.negozio)}</span>`:'';
-  const of=p.inOfferta?`<span class="chip offerta">🏷️ Offerta</span>`:'';
+  const of=p.inOfferta?`<span class="chip offerta">🏷️ Offerta</span>`:''
+  const soglia=p.soglia_minima>0?`<span class="chip" style="background:var(--amber-dim);color:var(--amber)">⚠ min ${p.soglia_minima}</span>`:'';
   const macro=p.macrogruppo?`<span class="chip cat">📂 ${esc(p.macrogruppo)}</span>`:'';
-  const tipo=p.tipologia?`<span class="chip" style="background:#e0f2fe;color:#0369a1">🏷 ${esc(p.tipologia)}</span>`:'';
+  const tipo=p.tipologia?`<span class="chip" style="background:var(--blue-dim);color:var(--blue)">🏷 ${esc(p.tipologia)}</span>`:'';
   const esaurito=p.quantita===0;
   return `<div class="product-card${esaurito?' esaurito':''}">
     <div class="card-header" onclick="toggleCard(this)">
       <div class="card-icon">${getMacroEmoji(p.macrogruppo)}</div>
-      <div class="card-main"><div class="card-name">${esc(p.nome)}</div><div class="card-meta">${macro}${tipo}${sc}${pr}${pe}${ng}${of}</div></div>
+      <div class="card-main"><div class="card-name">${esc(p.prodotto||p.nome)}${p.marchio?`<span style="font-weight:400;color:var(--text-dim);font-size:.88em"> · ${esc(p.marchio)}</span>`:''}</div><div class="card-meta">${macro}${tipo}${sc}${pr}${pe}${ng}${of}${soglia}</div></div>
       <div class="qty-badge${esaurito?' zero':''}">×${p.quantita}</div><span class="chevron">▶</span>
     </div>
     <div class="card-detail">
@@ -1371,6 +1475,7 @@ function renderSpesa(lista,el){
     <div style="display:flex;gap:6px;margin-bottom:10px">
       <button class="stat-tab ${spesaSortMode==='nome'?'active':''}" onclick="setSpesaSort('nome')">📝 Per nome</button>
       <button class="stat-tab ${spesaSortMode==='macrogruppo'?'active':''}" onclick="setSpesaSort('macrogruppo')">📂 Per reparto</button>
+      <button class="stat-tab ${spesaSortMode==='tipologia'?'active':''}" onclick="setSpesaSort('tipologia')">🏷 Per categoria</button>
     </div>`;
 
   if(lista.length===0){
@@ -1397,6 +1502,36 @@ function renderSpesa(lista,el){
         }
         html+=buildSpesaCard(p);
       });
+    } else if(spesaSortMode==='tipologia'){
+      // Ordina per macrogruppo → tipologia → nome, poi raggruppa con due livelli di intestazione
+      sorted.sort((a,b)=>{
+        const ma=(a.macrogruppo||'Zzz').localeCompare(b.macrogruppo||'Zzz','it',{sensitivity:'base'});
+        if(ma!==0)return ma;
+        const ta=(a.tipologia||'Zzz').localeCompare(b.tipologia||'Zzz','it',{sensitivity:'base'});
+        if(ta!==0)return ta;
+        return a.nome.localeCompare(b.nome,'it',{sensitivity:'base'});
+      });
+      let lastMacro=null,lastTipo=null;
+      sorted.forEach(p=>{
+        const macro=p.macrogruppo||'Altro';
+        const tipo=p.tipologia||'';
+        if(macro!==lastMacro){
+          html+=`<div style="display:flex;align-items:center;gap:7px;margin:${lastMacro?'14px':'2px'} 0 6px;padding:0 2px">
+            <span style="font-size:1rem">${getMacroEmoji(macro)}</span>
+            <span style="font-size:.75rem;font-weight:800;color:var(--text-mid);letter-spacing:.06em;text-transform:uppercase">${esc(macro)}</span>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>`;
+          lastMacro=macro;lastTipo=null;
+        }
+        if(tipo&&tipo!==lastTipo){
+          html+=`<div style="display:flex;align-items:center;gap:6px;margin:6px 0 4px;padding:0 4px">
+            <span style="font-size:.68rem;font-weight:700;color:var(--blue);background:var(--blue-dim);border:1px solid rgba(96,165,250,.2);border-radius:5px;padding:1px 7px">🏷 ${esc(tipo)}</span>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>`;
+          lastTipo=tipo;
+        }
+        html+=buildSpesaCard(p);
+      });
     } else {
       sorted.sort((a,b)=>a.nome.localeCompare(b.nome,'it',{sensitivity:'base'}));
       sorted.forEach(p=>{html+=buildSpesaCard(p);});
@@ -1406,11 +1541,19 @@ function renderSpesa(lista,el){
 }
 
 function buildSpesaCard(p){
-  const tipo=p.tipologia?`<span class="chip" style="font-size:.72rem;background:#e0f2fe;color:#0369a1">🏷 ${esc(p.tipologia)}</span>`:'';
+  const tipo=p.tipologia?`<span class="chip" style="font-size:.72rem;background:var(--blue-dim);color:var(--blue)">🏷 ${esc(p.tipologia)}</span>`:'';
   return `<div class="spesa-card"><span style="font-size:1.1rem">${getMacroEmoji(p.macrogruppo)}</span><div style="flex:1"><div class="spesa-nome">${esc(p.nome)}</div>${tipo?`<div style="margin-top:3px">${tipo}</div>`:''}</div><div class="spesa-qty-ctrl"><button class="spesa-qty-btn minus" ${p.quantita<=1?'disabled':''} onclick="changeSpesaQty(${p.id},-1)">−</button><span class="spesa-qty-num">${p.quantita}</span><button class="spesa-qty-btn plus" onclick="changeSpesaQty(${p.id},1)">＋</button></div><button class="btn-delete" onclick="eliminaProdotto(${p.id})">🗑</button></div>`;
 }
 
 function setSpesaSort(m){spesaSortMode=m;render();}
+function setNegozioSort(m){
+  negozioSortMode=m;
+  ['nome','macrogruppo','tipologia'].forEach(k=>{
+    const btn=document.getElementById('neg-sort-'+k);
+    if(btn)btn.className='stat-tab'+(k===m?' active':'');
+  });
+  renderNegozio();
+}
 
 // ── BUDGET MENSILE ────────────────────────────────────
 function apriBudgetModal(){
@@ -1477,7 +1620,7 @@ function esportaListaSpesa(){
 }
 async function esportaCSV(){
   showToast('⏳ Preparazione CSV…');
-  await loadStorico();
+  invalidaStorico();await loadStorico();
   if(storicoCache.length===0){showToast('Nessuno storico da esportare');return;}
   const cols=['data','nome','prezzo','quantita','negozio','macrogruppo','tipologia'];
   const header=cols.join(';');
@@ -1951,6 +2094,7 @@ function aggiornaGrafico(){
 // ── INTERACTIONS ──────────────────────────────────────
 function switchTab(t){
   currentTab=t;
+  if(t!==0)macroFilter='tutti'; // reset filtro categoria quando si lascia la credenza
   [0,1,2].forEach(i=>document.getElementById('tab'+i).className='tab'+(t===i?' active':''));
   render();
 }
@@ -1963,16 +2107,17 @@ function toggleCard(header){
 }
 
 async function changeQty(id,delta){
-  const p=prodotti.find(x=>x.id===id);if(!p)return;
-  const nuova=Math.max(0,p.quantita+delta);
-  p.quantita=nuova;
-  render();
-  await dbUpdate(p);
-  // Controlla soglia
-  if(nuova===0){
+  if(!_lock('qty-'+id))return;
+  try{
+    const p=prodotti.find(x=>x.id===id);if(!p)return;
+    const nuova=Math.max(0,p.quantita+delta);
+    p.quantita=nuova;
+    render();
+    await dbUpdate(p);
+    // Controlla soglia: popup se esaurito (=0) o sotto la soglia minima impostata
     const soglia=p.soglia_minima||0;
-    mostraPopupEsaurito(p);
-  }
+    if(nuova===0||(soglia>0&&nuova<=soglia))mostraPopupEsaurito(p);
+  }finally{_unlock('qty-'+id);}
 }
 
 function mostraPopupEsaurito(p){
@@ -1990,26 +2135,35 @@ async function aggiungiEsauritoASpesa(){
   }finally{_unlock('aggiungiEsaurito');}
 }
 
+// Timer per debounce per-prodotto: evita un dbUpdate per ogni onchange rapido
+const _fieldTimers={};
 async function fieldChange(id,field,value){
   const p=prodotti.find(x=>x.id===id);if(!p)return;
   if(field==='peso')value=fmtPeso(value);
   p[field]=value;
   render();
-  await dbUpdate(p);
-  // Se cambia il prezzo manualmente, salva nello storico
-  if(field==='prezzo'&&value>0&&!p.inSpesa){
-    await salvaStorico(p.nome,value,p.quantita,p.negozio,p.macrogruppo,p.tipologia,p.marchio||'');
-  }
+  // Debounce: aspetta 600ms dall'ultima modifica prima di scrivere sul DB
+  clearTimeout(_fieldTimers[id]);
+  _fieldTimers[id]=setTimeout(async()=>{
+    await dbUpdate(p);
+    // Se cambia il prezzo manualmente, salva nello storico
+    if(field==='prezzo'&&value>0&&!p.inSpesa){
+      await salvaStorico(p.nome,value,p.quantita,p.negozio,p.macrogruppo,p.tipologia,p.marchio||'');
+    }
+  },600);
 }
 function onScadInput(id,input){const fmt=fmtScad(input.value);if(fmt!==input.value)input.value=fmt;const p=prodotti.find(x=>x.id===id);if(!p)return;p.scadenza=fmt;clearTimeout(input._t);input._t=setTimeout(()=>dbUpdate(p),800);}
 
 async function mandaInSpesa(id){
-  const p=prodotti.find(x=>x.id===id);if(!p)return;
-  if(!prodotti.find(x=>x.inSpesa&&x.nome.toLowerCase()===p.nome.toLowerCase())){
-    const ins=await dbInsert({nome:p.nome,quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo:p.macrogruppo||'',tipologia:p.tipologia||'',soglia_minima:0});
-    if(ins)prodotti.push(ins);
-  }
-  currentTab=1;render();showToast(`${p.nome} aggiunto alla spesa`);
+  if(!_lock('spesa-'+id))return;
+  try{
+    const p=prodotti.find(x=>x.id===id);if(!p)return;
+    if(!prodotti.find(x=>x.inSpesa&&normNome(x.nome)===normNome(p.nome))){
+      const ins=await dbInsert({nome:p.nome,quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo:p.macrogruppo||'',tipologia:p.tipologia||'',soglia_minima:0});
+      if(ins)prodotti.push(ins);
+    }
+    currentTab=1;render();showToast(`${p.nome} aggiunto alla spesa`);
+  }finally{_unlock('spesa-'+id);}
 }
 let eliminaPendingId = null;
 function eliminaProdotto(id){
@@ -2028,42 +2182,48 @@ async function confermaElimina(){
   }finally{_unlock('confermaElimina');}
 }
 function chiudiEliminaModal(){document.getElementById('eliminaModal').classList.remove('open');eliminaPendingId=null;}
-async function changeSpesaQty(id,delta){const p=prodotti.find(x=>x.id===id);if(!p)return;p.quantita=Math.max(1,p.quantita+delta);render();await dbUpdate(p);}
+async function changeSpesaQty(id,delta){
+  if(!_lock('qty-'+id))return;
+  try{
+    const p=prodotti.find(x=>x.id===id);if(!p)return;
+    p.quantita=Math.max(1,p.quantita+delta);
+    render();
+    await dbUpdate(p);
+  }finally{_unlock('qty-'+id);}
+}
 
-let _quickAddBusy=false;
 const _busy=new Set();
 function _lock(name){if(_busy.has(name))return false;_busy.add(name);return true;}
 function _unlock(name){_busy.delete(name);}
 async function quickAdd(){
-  if(_quickAddBusy)return;
-  _quickAddBusy=true;
+  if(!_lock('quickAdd'))return;
   try{
   const input=document.getElementById('quickAddInput');
-  const nome=input.value.trim();if(!nome){_quickAddBusy=false;return;}
+  const nome=input.value.trim();if(!nome){_unlock('quickAdd');return;}
   let macrogruppo=input._macro||'';
   let tipologia=input._tipo||'';
   let prodotto=input._prodotto||nome;
   let marchio=input._marchio||'';
   // Se non è stato selezionato un suggerimento, cerca nel catalogo per nome esatto
   if(!macrogruppo){
-    const inCatalogo=catalogoCache.find(c=>c.nome.toLowerCase()===nome.toLowerCase());
+    const inCatalogo=catalogoCache.find(c=>normNome(c.nome)===normNome(nome));
     if(inCatalogo){macrogruppo=inCatalogo.macrogruppo||'';tipologia=inCatalogo.tipologia||'';prodotto=inCatalogo.prodotto||nome;marchio=inCatalogo.marchio||'';}
   }
   // Cerca anche tra i prodotti già in credenza
   if(!macrogruppo){
-    const inCredenza=prodotti.find(p=>!p.inSpesa&&p.nome.toLowerCase()===nome.toLowerCase());
+    const inCredenza=prodotti.find(p=>!p.inSpesa&&normNome(p.nome)===normNome(nome));
     if(inCredenza){macrogruppo=inCredenza.macrogruppo||'';tipologia=inCredenza.tipologia||'';prodotto=inCredenza.prodotto||nome;marchio=inCredenza.marchio||'';}
   }
-  if(!prodotti.find(x=>x.inSpesa&&x.nome.toLowerCase()===nome.toLowerCase())){
+  if(!prodotti.find(x=>x.inSpesa&&normNome(x.nome)===normNome(nome))){
     const ins=await dbInsert({nome,prodotto,marchio,quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0});
     if(ins){prodotti.push(ins);render();}
   }
   input.value='';input._macro='';input._tipo='';input._prodotto='';input._marchio='';
   closeQuickDropdown();
   // Controlla se il prodotto è già nel catalogo (per nome esatto)
-  const nelCatalogo=catalogoCache.some(c=>c.nome.toLowerCase()===nome.toLowerCase());
-  if(!nelCatalogo) apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia);
-  }finally{_quickAddBusy=false;}
+  const nelCatalogo=catalogoCache.some(c=>normNome(c.nome)===normNome(nome));
+  if(!nelCatalogo) setTimeout(()=>apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia),800);
+  }finally{_unlock('quickAdd');}
 }
 
 // ── PROPOSTA AGGIUNTA AL CATALOGO ────────────────────
@@ -2086,7 +2246,8 @@ function onCpMacroChange(){
   popolaTipo('cp-tipologia',document.getElementById('cp-macrogruppo').value,'');
 }
 async function confermaCatalogoProposta(){
-  if(!catalogoPropostaPendente)return;
+  if(!_lock('confermaCatalogo'))return;
+  if(!catalogoPropostaPendente){_unlock('confermaCatalogo');return;}
   const nome=catalogoPropostaPendente.nome;
   const prodotto=document.getElementById('cp-prodotto').value.trim()||nome;
   const marchio=document.getElementById('cp-marchio').value.trim();
@@ -2097,7 +2258,7 @@ async function confermaCatalogoProposta(){
   const result=await dbCatalogoInsert(nome,prodotto,marchio,macrogruppo,tipologia);
   // Aggiorna anche i prodotti già in lista/credenza con lo stesso nome che hanno categoria vuota
   if(result&&(macrogruppo||tipologia)){
-    const daAggiornare=prodotti.filter(p=>p.nome.toLowerCase()===nome.toLowerCase()&&(!p.macrogruppo||!p.tipologia));
+    const daAggiornare=prodotti.filter(p=>normNome(p.nome)===normNome(nome)&&(!p.macrogruppo||!p.tipologia));
     for(const p of daAggiornare){
       if(macrogruppo)p.macrogruppo=macrogruppo;
       if(tipologia)p.tipologia=tipologia;
@@ -2109,6 +2270,7 @@ async function confermaCatalogoProposta(){
   }
   setSyncing(false);
   if(result)showToast(`✓ "${nome}" aggiunto al catalogo`);
+  }finally{_unlock('confermaCatalogo');}
 }
 
 // ── ADD MODAL ─────────────────────────────────────────
@@ -2159,7 +2321,7 @@ async function saveModal(){
   try{
   const prodotto=document.getElementById('f-prodotto').value.trim();if(!prodotto){_unlock('saveModal');document.getElementById('f-prodotto').focus();return;}
   const marchio=document.getElementById('f-marchio').value.trim();
-  const nome=marchio?`${prodotto} ${marchio}`:prodotto;
+  const nome=buildNome(prodotto,marchio);
   const scadenza=fmtScad(document.getElementById('f-scadenza').value);
   const prezzo=parseFloat(document.getElementById('f-prezzo').value)||0;
   const peso=fmtPeso(document.getElementById('f-peso').value.trim());
@@ -2176,8 +2338,8 @@ async function saveModal(){
     if(ins){
       prodotti.push(ins);
       // Proponi aggiunta al catalogo se non presente
-      const nelCatalogo=catalogoCache.some(c=>c.nome.toLowerCase()===nome.toLowerCase());
-      if(!nelCatalogo) apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia);
+      const nelCatalogo=catalogoCache.some(c=>normNome(c.nome)===normNome(nome));
+      if(!nelCatalogo) setTimeout(()=>apriCatalogoPropostaModal(nome,prodotto,marchio,macrogruppo,tipologia),800);
     }
   }
   closeModal();render();
@@ -2247,7 +2409,7 @@ function selezionaMarchio(m){
   const prodotto=document.getElementById('f-prodotto').value.trim();
   const nome=m?`${prodotto} ${m}`:prodotto;
   if(!document.getElementById('f-macrogruppo').value){
-    const match=catalogoCache.find(c=>c.nome.toLowerCase()===nome.toLowerCase());
+    const match=catalogoCache.find(c=>normNome(c.nome)===normNome(nome));
     if(match){
       popolaMacro('f-macrogruppo',match.macrogruppo);
       popolaTipo('f-tipologia',match.macrogruppo,match.tipologia);
@@ -2326,23 +2488,20 @@ function selectAcItem(i){
 }
 
 async function aggiungiCategoriaASpesa(s){
-  // Aggiunge la categoria stessa come voce nella lista della spesa
-  const nome = s._catTipo==='tipologia' ? s.tipologia : s.macrogruppo;
-  const macrogruppo = s.macrogruppo;
-  const tipologia = s._catTipo==='tipologia' ? s.tipologia : '';
-  // Evita duplicati
-  if(prodotti.find(x=>x.inSpesa&&x.nome.toLowerCase()===nome.toLowerCase())){
-    showToast(`"${nome}" è già nella lista`);
+  if(!_lock('aggiungiCategoria'))return;
+  try{
+    const nome = s._catTipo==='tipologia' ? s.tipologia : s.macrogruppo;
+    const macrogruppo = s.macrogruppo;
+    const tipologia = s._catTipo==='tipologia' ? s.tipologia : '';
+    if(prodotti.find(x=>x.inSpesa&&normNome(x.nome)===normNome(nome))){
+      showToast(`"${nome}" è già nella lista`);
+      document.getElementById('quickAddInput').value='';
+      return;
+    }
+    const ins=await dbInsert({nome,prodotto:nome,marchio:'',quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0});
+    if(ins){prodotti.push(ins);render();showToast(`✓ "${nome}" aggiunto alla spesa`);}
     document.getElementById('quickAddInput').value='';
-    return;
-  }
-  const ins=await dbInsert({nome,prodotto:nome,marchio:'',quantita:1,scadenza:'',prezzo:0,peso:'',negozio:'',inOfferta:false,inSpesa:true,macrogruppo,tipologia,soglia_minima:0});
-  if(ins){
-    prodotti.push(ins);
-    render();
-    showToast(`✓ "${nome}" aggiunto alla spesa`);
-  }
-  document.getElementById('quickAddInput').value='';
+  }finally{_unlock('aggiungiCategoria');}
 }
 
 function closeQuickDropdown(){
@@ -2371,7 +2530,15 @@ function startSpesa(){
   renderNegozio();
   document.getElementById('negozioScreen').classList.add('open');
 }
-function closeNegozioScreen(){document.getElementById('negozioScreen').classList.remove('open');document.getElementById('negozioInput').value='';toggleNegAdd(false);}
+function closeNegozioScreen(forza=false){
+  if(!forza){
+    const presi=negozioItems.filter(x=>x.preso).length;
+    if(presi>0&&!confirm(`Hai ${presi} prodott${presi===1?'o':'i'} nel carrello. Vuoi davvero uscire senza completare la spesa?`))return;
+  }
+  document.getElementById('negozioScreen').classList.remove('open');
+  document.getElementById('negozioInput').value='';
+  toggleNegAdd(false);
+}
 
 function toggleNegAdd(open){
   document.getElementById('negAddPanel').style.display=open?'block':'none';
@@ -2445,10 +2612,53 @@ function renderNegozio(){
   // ── DA PRENDERE ──
   if(todo.length>0){
     html+=`<div style="font-size:.72rem;font-weight:800;color:var(--text-dim);letter-spacing:.07em;text-transform:uppercase;padding:4px 2px 8px">DA PRENDERE (${todo.length})</div>`;
-    negozioItems.forEach((item,i)=>{
-      if(item.preso)return;
+
+    // Costruisce lista ordinata di indici (negozioItems non viene riordinato per preservare gli indici)
+    const todoIdx=negozioItems.map((item,i)=>({item,i})).filter(x=>!x.item.preso);
+    if(negozioSortMode==='nome'){
+      todoIdx.sort((a,b)=>a.item.prodotto.nome.localeCompare(b.item.prodotto.nome,'it',{sensitivity:'base'}));
+    } else if(negozioSortMode==='macrogruppo'){
+      todoIdx.sort((a,b)=>{
+        const ma=(a.item.prodotto.macrogruppo||'Zzz').localeCompare(b.item.prodotto.macrogruppo||'Zzz','it',{sensitivity:'base'});
+        if(ma!==0)return ma;
+        return a.item.prodotto.nome.localeCompare(b.item.prodotto.nome,'it',{sensitivity:'base'});
+      });
+    } else { // tipologia
+      todoIdx.sort((a,b)=>{
+        const ma=(a.item.prodotto.macrogruppo||'Zzz').localeCompare(b.item.prodotto.macrogruppo||'Zzz','it',{sensitivity:'base'});
+        if(ma!==0)return ma;
+        const ta=(a.item.prodotto.tipologia||'Zzz').localeCompare(b.item.prodotto.tipologia||'Zzz','it',{sensitivity:'base'});
+        if(ta!==0)return ta;
+        return a.item.prodotto.nome.localeCompare(b.item.prodotto.nome,'it',{sensitivity:'base'});
+      });
+    }
+
+    let lastMacro=null,lastTipo=null;
+    todoIdx.forEach(({item,i})=>{
       const p=item.prodotto;
       const isCat=isCategoria(p);
+      // Intestazioni di gruppo (solo per modalità macrogruppo e tipologia)
+      if(negozioSortMode==='macrogruppo'||negozioSortMode==='tipologia'){
+        const macro=p.macrogruppo||'Altro';
+        if(macro!==lastMacro){
+          html+=`<div style="display:flex;align-items:center;gap:7px;margin:${lastMacro?'12px':'2px'} 0 5px;padding:0 2px">
+            <span style="font-size:1rem">${getMacroEmoji(macro)}</span>
+            <span style="font-size:.72rem;font-weight:800;color:var(--text-mid);letter-spacing:.06em;text-transform:uppercase">${esc(macro)}</span>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>`;
+          lastMacro=macro;lastTipo=null;
+        }
+        if(negozioSortMode==='tipologia'){
+          const tipo=p.tipologia||'';
+          if(tipo&&tipo!==lastTipo){
+            html+=`<div style="display:flex;align-items:center;gap:6px;margin:5px 0 3px;padding:0 4px">
+              <span style="font-size:.68rem;font-weight:700;color:var(--blue);background:var(--blue-dim);border:1px solid rgba(96,165,250,.2);border-radius:5px;padding:1px 7px">🏷 ${esc(tipo)}</span>
+              <div style="flex:1;height:1px;background:var(--border)"></div>
+            </div>`;
+            lastTipo=tipo;
+          }
+        }
+      }
       html+=`<div class="negozio-item${isCat?' ' :''}">
         <div class="negozio-item-header" onclick="spuntaItem(${i})" ${isCat?'style="border-left:3px solid var(--blue)"':''}>
           <div class="check-circle" ${isCat?'style="border-color:rgba(96,165,250,.4)"':''}></div>
@@ -2481,7 +2691,7 @@ function renderNegozio(){
       const p=item.prodotto;
       const isCat=isCategoria(p);
       // Calcola risparmio vs media storica
-      const storicoNome=storicoCache.filter(r=>r.nome.toLowerCase()===p.nome.toLowerCase()&&r.prezzo>0);
+      const storicoNome=storicoCache.filter(r=>normNome(r.nome)===normNome(p.nome)&&r.prezzo>0);
       const mediaStorica=storicoNome.length>0?storicoNome.reduce((s,r)=>s+r.prezzo,0)/storicoNome.length:0;
       const risparmioAuto=(mediaStorica>0&&p.prezzo>0&&p.prezzo<mediaStorica)?Math.round((1-p.prezzo/mediaStorica)*100):0;
       // Badge offerta
@@ -2514,10 +2724,6 @@ function renderNegozio(){
               style="border-color:rgba(96,165,250,.4);box-shadow:0 0 0 3px rgba(96,165,250,.08)"
               onchange="aggiornaNomeDaCategoria(${i})">
           </div>`:''}
-          <div class="field-row">
-            <div class="field"><label>Prezzo €</label><input type="number" min="0" step="0.01" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" placeholder="0.00" onchange="updateNF(${i},'prezzo',parseFloat(this.value)||0)"></div>
-            <div class="field"><label>Quantità</label><input type="number" min="1" value="${p.quantita}" onchange="updateNF(${i},'quantita',parseInt(this.value)||1)"></div>
-          </div>
           <div class="field" style="position:relative">
             <label>Marchio <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">(opzionale)</span></label>
             <input id="neg-marchio-${i}" value="${esc(p.marchio||'')}" placeholder="es. Barilla, Granarolo…" autocomplete="off"
@@ -2526,8 +2732,12 @@ function renderNegozio(){
             <div class="autocomplete-dropdown" id="neg-marchio-dd-${i}"></div>
           </div>
           <div class="field-row">
-            <div class="field"><label>Peso (es. 500g, 1kg)</label><input value="${esc(fmtPeso(p.peso))}" placeholder="500g" onchange="updateNF(${i},'peso',this.value)"></div>
-            <div class="field"><label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" placeholder="gg/mm/aaaa" inputmode="numeric" oninput="onNegScad(${i},this)"></div>
+            <div class="field"><label>Prezzo €</label><input type="number" min="0" step="0.01" value="${p.prezzo>0?p.prezzo.toFixed(2):''}" placeholder="0.00" onchange="updateNF(${i},'prezzo',parseFloat(this.value)||0)"></div>
+            <div class="field"><label>Peso (es. 500g)</label><input value="${esc(fmtPeso(p.peso))}" placeholder="500g" onchange="updateNF(${i},'peso',this.value)"></div>
+            <div class="field"><label>Quantità</label><input type="number" min="1" value="${p.quantita}" onchange="updateNF(${i},'quantita',parseInt(this.value)||1)"></div>
+          </div>
+          <div class="field">
+            <label>Scadenza</label><input value="${esc(p.scadenza)}" maxlength="10" placeholder="gg/mm/aaaa" inputmode="numeric" oninput="onNegScad(${i},this)">
           </div>
           <div class="field" style="margin-top:10px">
             <label>🏷️ Tipo offerta <span style="font-weight:400;text-transform:none;letter-spacing:0">(opzionale)</span></label>
@@ -2578,7 +2788,7 @@ async function aggiornaNomeDaCategoria(i){
   const p=negozioItems[i].prodotto;
   const vecchioId=p.id;
   // Cerca nel catalogo per arricchire macro/tipo
-  const inCat=catalogoCache.find(c=>c.nome.toLowerCase()===nuovoNome.toLowerCase());
+  const inCat=catalogoCache.find(c=>normNome(c.nome)===normNome(nuovoNome));
   if(inCat){p.macrogruppo=inCat.macrogruppo||p.macrogruppo;p.tipologia=inCat.tipologia||p.tipologia;}
   p.nome=nuovoNome;p.prodotto=nuovoNome;
   const inProd=prodotti.find(x=>x.id===vecchioId);
@@ -2597,7 +2807,7 @@ function updateNF(i,f,v){
   // Se cambia il prezzo aggiorna anche inOfferta e risparmio
   if(f==='prezzo'){
     const p=negozioItems[i].prodotto;
-    const storicoNome=storicoCache.filter(r=>r.nome.toLowerCase()===p.nome.toLowerCase()&&r.prezzo>0);
+    const storicoNome=storicoCache.filter(r=>normNome(r.nome)===normNome(p.nome)&&r.prezzo>0);
     const media=storicoNome.length>0?storicoNome.reduce((s,r)=>s+r.prezzo,0)/storicoNome.length:0;
     p.risparmioOfferta=media>0&&v>0&&v<media?Math.round((1-v/media)*100):0;
     if(p.risparmioOfferta>=10&&!p.tipoOfferta)p.inOfferta=true;
@@ -2653,13 +2863,16 @@ function selezionaMarchioNeg(i, m){
 
 async function completaSpesa(){
   if(!_lock('completaSpesa'))return;
+  const btn=document.getElementById('completaBtn');
+  const testoOriginale=btn.textContent;
+  btn.textContent='⏳ Salvataggio…';btn.disabled=true;
   try{
   const negozio=document.getElementById('negozioScreen').dataset.negozio||'';
   const comp=negozioItems.filter(x=>x.preso);
   for(const item of comp){
     const acq={...item.prodotto,negozio:negozio||item.prodotto.negozio};
     if(acq.prezzo>0) await salvaStorico(acq.nome,acq.prezzo,acq.quantita,acq.negozio,acq.macrogruppo,acq.tipologia,acq.marchio||'',acq.tipoOfferta||'',acq.risparmioOfferta||0);
-    const inCred=prodotti.find(x=>!x.inSpesa&&x.nome.toLowerCase()===acq.nome.toLowerCase());
+    const inCred=prodotti.find(x=>!x.inSpesa&&normNome(x.nome)===normNome(acq.nome));
     if(inCred){
       inCred.quantita+=acq.quantita;
       if(acq.scadenza)inCred.scadenza=acq.scadenza;
@@ -2677,9 +2890,9 @@ async function completaSpesa(){
       if(p){Object.assign(p,{inSpesa:false,negozio:acq.negozio,scadenza:acq.scadenza,prezzo:acq.prezzo,peso:acq.peso,inOfferta:acq.inOfferta,tipoOfferta:acq.tipoOfferta||'',macrogruppo:acq.macrogruppo,tipologia:acq.tipologia});await dbUpdate(p);}
     }
   }
-  closeNegozioScreen();currentTab=0;render();
+  closeNegozioScreen(true);currentTab=0;render();
   showToast(`✓ ${comp.length} prodott${comp.length===1?'o':'i'} in credenza`);
-  }finally{_unlock('completaSpesa');}
+  }finally{btn.textContent=testoOriginale;btn.disabled=negozioItems.filter(x=>x.preso).length===0;_unlock('completaSpesa');}
 }
 
 // ── BOOT ──────────────────────────────────────────────
